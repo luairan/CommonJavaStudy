@@ -1,4 +1,4 @@
-package sum.sample;
+package nioSample.sample;
 
 /*
  * @(#)Ping.java 1.2 01/12/13 Connect to each of a list of hosts and measure the time required to complete the

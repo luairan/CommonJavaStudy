@@ -1,4 +1,4 @@
-package sum.sample;
+package nioSample.sample;
 
 /*
  * @(#)Grep.java 1.3 01/12/13 Search a list of files for lines that match a given regular-expression pattern.

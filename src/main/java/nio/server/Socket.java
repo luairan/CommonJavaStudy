@@ -1,4 +1,4 @@
-package server;
+package nio.server;
 
 import java.net.InetSocketAddress;
 import java.nio.channels.AsynchronousChannelGroup;
@@ -13,7 +13,7 @@ public class Socket {
 		AsynchronousServerSocketChannel socket = AsynchronousServerSocketChannel.open(asynchronousChannelGroup);
 		socket.bind(new InetSocketAddress(9999));
 		socket.accept(socket, new Handler());
-		//ÒòÎªAIO²»»á×èÈûµ÷ÓÃ½ø³Ì£¬Òò´Ë±ØÐëÔÚÖ÷½ø³Ì×èÈû£¬²ÅÄÜ±£³Ö½ø³Ì´æ»î¡£  
+		//ï¿½ï¿½ÎªAIOï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã½ï¿½ï¿½Ì£ï¿½ï¿½ï¿½Ë±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü±ï¿½ï¿½Ö½ï¿½ï¿½Ì´ï¿½î¡£  
 //        try {  
 //            Thread.sleep(Integer.MAX_VALUE);  
 //        } catch (InterruptedException e) {  

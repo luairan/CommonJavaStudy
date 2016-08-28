@@ -1,11 +1,13 @@
-import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
+package sort;
+
+import java.io.*;
 import java.util.Random;
 
-public class Test {
+
+/**
+ * 这个是测试的例子
+ */
+public class UseCaseTest {
 	public static void main(String[] args) throws Exception{
 			FileOutputStream fos =new FileOutputStream(new File("/Users/luairan/Desktop/a.txt"));
 			BufferedOutputStream bos =new BufferedOutputStream(fos);

@@ -1,9 +1,9 @@
-package producercostomer;
+package thread.producercostomer;
 
 import java.util.concurrent.Semaphore;
 
 public class ProducerCustomer4 {
-	Semaphore mutex = new Semaphore(1);// »¥³âÁ¿
+	Semaphore mutex = new Semaphore(1);// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	Semaphore notfull = new Semaphore(10);
 	Semaphore notempty = new Semaphore(0);
 	String[] array = new String[10];

@@ -1,4 +1,4 @@
-package sum.sample;
+package nioSample.sample;
 
 /*
  * @(#)TimeQuery.java 1.2 01/12/13 Ask a list of hosts what time it is. Demonstrates NIO socket channels (connection and

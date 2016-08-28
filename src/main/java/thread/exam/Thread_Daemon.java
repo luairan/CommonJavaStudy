@@ -1,4 +1,4 @@
-package exam;
+package thread.exam;
 
 public class Thread_Daemon {
 	public static void main(String[] args) {
@@ -17,6 +17,7 @@ public class Thread_Daemon {
 //		}
 	}
 }
+
 class DaemonThread implements Runnable{
 	@Override
 	public void run() {

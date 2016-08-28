@@ -1,4 +1,4 @@
-package nio.sample.echo;
+package nioSample.nio.sample.echo;
 
 import java.nio.channels.SocketChannel;
 import java.util.LinkedList;

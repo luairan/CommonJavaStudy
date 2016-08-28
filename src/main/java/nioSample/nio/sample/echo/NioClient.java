@@ -1,4 +1,4 @@
-package nio.sample.echo;
+package nioSample.nio.sample.echo;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -8,13 +8,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class NioClient implements Runnable {
 

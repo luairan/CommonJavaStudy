@@ -1,4 +1,4 @@
-package nio.asyn.multithread;
+package nioSample.nio.asyn.multithread;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -6,7 +6,6 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
 
 public class OperationClient {
 

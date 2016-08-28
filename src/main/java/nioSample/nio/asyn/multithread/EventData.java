@@ -1,4 +1,4 @@
-package nio.asyn.multithread;
+package nioSample.nio.asyn.multithread;
 
 public class EventData {
 	String message;

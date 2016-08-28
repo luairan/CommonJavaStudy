@@ -1,4 +1,4 @@
-package exam;
+package thread.exam;
 
 public class Thread_interrput {
 	public static void main(String[] args) {
@@ -8,6 +8,7 @@ public class Thread_interrput {
 		t.interrupt();
 	}
 }
+
 class S implements Runnable{
 	public volatile boolean stop = false;
 	@Override

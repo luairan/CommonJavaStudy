@@ -1,4 +1,4 @@
-package nio.sample.filecopy;
+package nioSample.nio.sample.filecopy;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,9 +8,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
- * ÀàNIOFileCopy.javaµÄÊµÏÖÃèÊö£ºÊ¹ÓÃNIO½øÐÐÎÄ¼þ¶ÁÐ´
+ * ï¿½ï¿½NIOFileCopy.javaï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½NIOï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Ð´
  * 
- * @author yblin 2010-10-17 ÏÂÎç02:09:31
+ * @author yblin 2010-10-17 ï¿½ï¿½ï¿½ï¿½02:09:31
  */
 public class NIOFileCopy extends CommonCopy {
 

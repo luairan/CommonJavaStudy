@@ -1,15 +1,11 @@
-package nio.sample.filecopy;
+package nioSample.nio.sample.filecopy;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 
 /**
- * ÀàStreamFileCopy.javaµÄÊµÏÖÃèÊö£ºÍ¨¹ýFileInputStreamÀ´¶ÁÐ´
+ * ï¿½ï¿½StreamFileCopy.javaï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½FileInputStreamï¿½ï¿½ï¿½ï¿½Ð´
  * 
- * @author yblin 2010-10-17 ÏÂÎç01:59:05
+ * @author yblin 2010-10-17 ï¿½ï¿½ï¿½ï¿½01:59:05
  */
 public class StreamFileCopyWithBuffer extends CommonCopy {
 

@@ -1,4 +1,4 @@
-package exam;
+package thread.exam;
 
 public class Mytest {
 	public void print (TreeNode root ,int sum){
@@ -33,6 +33,7 @@ public class Mytest {
 		
 	}
 }
+
 class TreeNode{
 	public TreeNode(int num){
 		this.num = num;

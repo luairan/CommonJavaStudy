@@ -1,4 +1,4 @@
-package nio.sample.filecopy;
+package nioSample.nio.sample.filecopy;
 
 public class CommonCopy implements Runnable {
 

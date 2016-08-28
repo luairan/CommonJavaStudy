@@ -1,4 +1,4 @@
-package sum.sample;
+package nioSample.sample;
 
 /*
  * @(#)TimeServer.java 1.3 01/12/13 Listen for connections and tell callers what time it is. Demonstrates NIO socket

@@ -1,31 +1,31 @@
-package nio.readpage;
+package nioSample.nio.readpage;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
-import java.net.InetSocketAddress;
-import java.io.IOException;
 
 public class BaiduReader {
 
-	private Charset charset = Charset.forName("GBK");// ´´½¨GBK×Ö·û¼¯
+	private Charset charset = Charset.forName("GBK");// ï¿½ï¿½ï¿½ï¿½GBKï¿½Ö·ï¿½ï¿½ï¿½
 	private SocketChannel channel;
 
 	public void readHTMLContent() {
 		try {
 			InetSocketAddress socketAddress = new InetSocketAddress(
 					"www.baidu.com", 80);
-			//step1:´ò¿ªÁ¬½Ó
+			//step1:ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			channel = SocketChannel.open(socketAddress);
-			//step2:·¢ËÍÇëÇó£¬Ê¹ÓÃGBK±àÂë
+			//step2:ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½GBKï¿½ï¿½ï¿½ï¿½
 			channel.write(charset.encode("GET " + "/ HTTP/1.1" + "\r\n\r\n"));
-			//step3:¶ÁÈ¡Êý¾Ý
-			ByteBuffer buffer = ByteBuffer.allocate(1024);// ´´½¨1024×Ö½ÚµÄ»º³å
+			//step3:ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½
+			ByteBuffer buffer = ByteBuffer.allocate(1024);// ï¿½ï¿½ï¿½ï¿½1024ï¿½Ö½ÚµÄ»ï¿½ï¿½ï¿½
 			while (channel.read(buffer) != -1) {
-				buffer.flip();// flip·½·¨ÔÚ¶Á»º³åÇø×Ö½Ú²Ù×÷Ö®Ç°µ÷ÓÃ¡£
+				buffer.flip();// flipï¿½ï¿½ï¿½ï¿½ï¿½Ú¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö½Ú²ï¿½ï¿½ï¿½Ö®Ç°ï¿½ï¿½ï¿½Ã¡ï¿½
 				System.out.println(charset.decode(buffer));
-				// Ê¹ÓÃCharset.decode·½·¨½«×Ö½Ú×ª»»Îª×Ö·û´®
-				buffer.clear();// Çå¿Õ»º³å
+				// Ê¹ï¿½ï¿½Charset.decodeï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö½ï¿½×ªï¿½ï¿½Îªï¿½Ö·ï¿½ï¿½ï¿½
+				buffer.clear();// ï¿½ï¿½Õ»ï¿½ï¿½ï¿½
 			}
 		} catch (IOException e) {
 			System.err.println(e.toString());

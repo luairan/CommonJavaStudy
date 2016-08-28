@@ -1,4 +1,4 @@
-package nio.asyn;
+package nioSample.nio.asyn;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -112,7 +112,7 @@ public class OperationServer implements Runnable {
     }
 
     /**
-     * ×¢²áÊÂ¼þµ½selector£»
+     * ×¢ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½selectorï¿½ï¿½
      */
     public void initSelector() {
         try {

@@ -1,4 +1,4 @@
-package nio.sample.filecopy;
+package nioSample.nio.sample.filecopy;
 
 import java.io.File;
 import java.io.FileOutputStream;

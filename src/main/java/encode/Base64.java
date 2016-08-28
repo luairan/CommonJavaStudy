@@ -1,4 +1,4 @@
-package code;
+package encode;
 
 import java.util.ArrayList;
 import java.util.HashMap;

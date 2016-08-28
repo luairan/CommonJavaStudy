@@ -1,4 +1,4 @@
-package sum.sample;
+package nioSample.sample;
 
 /*
  * @(#)NBTimeServer.java 1.4 01/12/13 A non blocking Internet time server implemented using the New I/O (NIO) facilities

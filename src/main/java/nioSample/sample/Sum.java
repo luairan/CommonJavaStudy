@@ -1,4 +1,4 @@
-package sum.sample;
+package nioSample.sample;
 
 /*
  * @(#)Sum.java 1.3 01/12/13 Compute 16-bit checksums for a list of files, in the style of the BSD "sum" command. Uses

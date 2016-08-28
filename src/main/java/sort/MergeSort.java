@@ -14,6 +14,14 @@ public class MergeSort {
 //			System.out.print(temp+"\t");
 //		}
         FileInputStream fis = null;
+
+        /**
+         *
+         *
+         * 对Object类型进行排序。快速排序不稳定，对基本类型无影响，对Object类型有影响。归并排序稳定。
+         对大数组排序。快速排序的sort()采用递归实现，数组规模太大时会发生堆栈溢出，而归并排序sort()采用非递归实现，不存在此问题。
+         */
+
         fis = new FileInputStream("/Users/luairan/Desktop/a.txt");
         BufferedInputStream bis = new BufferedInputStream(fis);
         InputStreamReader isr = new InputStreamReader(bis);

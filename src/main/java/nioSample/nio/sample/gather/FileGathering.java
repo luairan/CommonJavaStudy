@@ -1,4 +1,4 @@
-package nio.sample.gather;
+package nioSample.nio.sample.gather;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,9 +8,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
- * ÀàFileGathering.javaµÄÊµÏÖÃèÊö£ºwrite two byte arrays to a same file.
+ * ï¿½ï¿½FileGathering.javaï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½write two byte arrays to a same file.
  * 
- * @author yblin 2010-10-18 ÉÏÎç09:22:10
+ * @author yblin 2010-10-18 ï¿½ï¿½ï¿½ï¿½09:22:10
  */
 public class FileGathering {
 

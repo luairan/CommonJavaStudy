@@ -1,4 +1,4 @@
-package file;
+package nio.file;
 
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;

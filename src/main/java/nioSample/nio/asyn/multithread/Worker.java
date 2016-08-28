@@ -1,4 +1,4 @@
-package nio.asyn.multithread;
+package nioSample.nio.asyn.multithread;
 
 import java.util.LinkedList;
 import java.util.List;

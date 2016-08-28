@@ -1,4 +1,4 @@
-package producercostomer;
+package thread.producercostomer;
 
 
 import java.util.concurrent.locks.Condition;

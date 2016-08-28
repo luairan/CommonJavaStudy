@@ -1,4 +1,4 @@
-package server;
+package nio.server;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousServerSocketChannel;
@@ -8,6 +8,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.util.concurrent.ExecutionException;
+
 public class Handler implements CompletionHandler<AsynchronousSocketChannel, AsynchronousServerSocketChannel>{
 	ByteBuffer echoBuffer = ByteBuffer.allocateDirect(1024);
 	CharsetDecoder decoder=Charset.forName("UTF-8").newDecoder();

@@ -1,4 +1,4 @@
-package nio.asyn.multithread;
+package nioSample.nio.asyn.multithread;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -99,7 +99,7 @@ public class SelectThread implements Runnable {
 	}
 
 	/**
-	 * ×¢²áÊÂ¼þµ½selector£»
+	 * ×¢ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½selectorï¿½ï¿½
 	 */
 	public void initSelector() {
 		try {

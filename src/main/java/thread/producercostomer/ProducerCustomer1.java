@@ -1,4 +1,4 @@
-package producercostomer;
+package thread.producercostomer;
 
 public class ProducerCustomer1 {
 	public static int limit = 10;

@@ -1,4 +1,4 @@
-
+package thread;
 
 public class InterruptMain {
 	public static void main(String[] args) {

@@ -1,3 +1,5 @@
+package sort;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -5,15 +7,15 @@ import java.io.InputStreamReader;
 
 public class HeapSort {
     private int heaplength = 0;
-    public int left(int node) {
-        return 2 * node + 1;
-    }
-    public int right(int node) {
-        return 2 * node + 2;
-    }
-    public int parent(int node) {
-        return (node + 1) / 2 - 1;
-    }
+//    public int left(int node) {
+//        return 2 * node + 1;
+//    }
+//    public int right(int node) {
+//        return 2 * node + 2;
+//    }
+//    public int parent(int node) {
+//        return (node + 1) / 2 - 1;
+//    }
     public void heapTheNode(int[] heap, int i) {
         int left = 2 * i + 1;
         int right = 2 * i + 2;

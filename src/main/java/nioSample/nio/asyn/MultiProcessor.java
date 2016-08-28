@@ -1,4 +1,4 @@
-package nio.asyn;
+package nioSample.nio.asyn;
 
 public class MultiProcessor {
 

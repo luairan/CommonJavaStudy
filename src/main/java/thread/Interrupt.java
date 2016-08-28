@@ -1,4 +1,4 @@
-
+package thread;
 
 public class Interrupt extends Thread {
 
@@ -17,7 +17,7 @@ public class Interrupt extends Thread {
 		}
 	}
 
-	private boolean isPrime(long number) { //ÅĞ¶ÏÒ»¸öÊıÊÇ·ñÊÇÖÊÊı
+	private boolean isPrime(long number) { //ï¿½Ğ¶ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		if(number <= 2) {
 			return true;
 		}
