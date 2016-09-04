@@ -2,7 +2,7 @@ package util;
 
 import java.util.*;
 
-public class BasicFormatterImpl {
+public class SQLFormater {
     private static final Set<String> BEGIN_CLAUSES = new HashSet();
     private static final Set<String> END_CLAUSES = new HashSet();
     private static final Set<String> LOGICAL = new HashSet();
@@ -12,11 +12,11 @@ public class BasicFormatterImpl {
     private static final String INDENT_STRING = "    ";
     private static final String INITIAL = "\n    ";
 
-    public BasicFormatterImpl() {
+    public SQLFormater() {
     }
 
     public String format(String source) {
-        return (new BasicFormatterImpl.FormatProcess(source)).perform();
+        return (new SQLFormater.FormatProcess(source)).perform();
     }
 
     static {
@@ -102,13 +102,13 @@ public class BasicFormatterImpl {
                     this.openParen();
                 } else if (")".equals(this.token)) {
                     this.closeParen();
-                } else if (BasicFormatterImpl.BEGIN_CLAUSES.contains(this.lcToken)) {
+                } else if (SQLFormater.BEGIN_CLAUSES.contains(this.lcToken)) {
                     this.beginNewClause();
-                } else if (BasicFormatterImpl.END_CLAUSES.contains(this.lcToken)) {
+                } else if (SQLFormater.END_CLAUSES.contains(this.lcToken)) {
                     this.endNewClause();
                 } else if ("select".equals(this.lcToken)) {
                     this.select();
-                } else if (BasicFormatterImpl.DML.contains(this.lcToken)) {
+                } else if (SQLFormater.DML.contains(this.lcToken)) {
                     this.updateOrInsertOrDelete();
                 } else if ("values".equals(this.lcToken)) {
                     this.values();
@@ -117,7 +117,7 @@ public class BasicFormatterImpl {
                 } else if (this.afterBetween && this.lcToken.equals("and")) {
                     this.misc();
                     this.afterBetween = false;
-                } else if (BasicFormatterImpl.LOGICAL.contains(this.lcToken)) {
+                } else if (SQLFormater.LOGICAL.contains(this.lcToken)) {
                     this.logical();
                 } else if (isWhitespace(this.token)) {
                     this.white();
@@ -309,7 +309,7 @@ public class BasicFormatterImpl {
         private static boolean isFunctionName(String tok) {
             char begin = tok.charAt(0);
             boolean isIdentifier = Character.isJavaIdentifierStart(begin) || 34 == begin;
-            return isIdentifier && !BasicFormatterImpl.LOGICAL.contains(tok) && !BasicFormatterImpl.END_CLAUSES.contains(tok) && !BasicFormatterImpl.QUANTIFIERS.contains(tok) && !BasicFormatterImpl.DML.contains(tok) && !BasicFormatterImpl.MISC.contains(tok);
+            return isIdentifier && !SQLFormater.LOGICAL.contains(tok) && !SQLFormater.END_CLAUSES.contains(tok) && !SQLFormater.QUANTIFIERS.contains(tok) && !SQLFormater.DML.contains(tok) && !SQLFormater.MISC.contains(tok);
         }
 
         private static boolean isWhitespace(String token) {

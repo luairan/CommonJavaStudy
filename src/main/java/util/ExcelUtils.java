@@ -20,10 +20,6 @@ import java.util.List;
  */
 public class ExcelUtils {
 
-    public enum Type {
-        XLS, XLSX
-    }
-
     /**
      * 读取Excel表格表头的内容
      *
@@ -173,66 +169,6 @@ public class ExcelUtils {
     }
 
     /**
-     * 获取单元格数据内容为字符串类型的数据
-     *
-     * @param cell Excel单元格
-     * @return String 单元格数据内容
-     */
-    private String getStringCellValue(HSSFCell cell) {
-        String strCell = "";
-        if (cell == null) {
-            return "";
-        }
-        switch (cell.getCellType()) {
-            case HSSFCell.CELL_TYPE_STRING:
-                strCell = cell.getStringCellValue();
-                break;
-            case HSSFCell.CELL_TYPE_NUMERIC:
-                strCell = String.valueOf(cell.getNumericCellValue());
-                break;
-            case HSSFCell.CELL_TYPE_BOOLEAN:
-                strCell = String.valueOf(cell.getBooleanCellValue());
-                break;
-            case HSSFCell.CELL_TYPE_BLANK:
-                strCell = "";
-                break;
-            default:
-                strCell = "";
-                break;
-        }
-        if (strCell.equals("") || strCell == null) {
-            return "";
-        }
-        return strCell;
-    }
-
-    /**
-     * 获取单元格数据内容为日期类型的数据
-     *
-     * @param cell Excel单元格
-     * @return String 单元格数据内容
-     */
-    private String getDateCellValue(HSSFCell cell) {
-        String result = "";
-        try {
-            int cellType = cell.getCellType();
-            if (cellType == HSSFCell.CELL_TYPE_NUMERIC) {
-                Date date = cell.getDateCellValue();
-                result = (date.getYear() + 1900) + "-" + (date.getMonth() + 1) + "-" + date.getDate();
-            } else if (cellType == HSSFCell.CELL_TYPE_STRING) {
-                String date = getStringCellValue(cell);
-                result = date.replaceAll("[年月]", "-").replace("日", "").trim();
-            } else if (cellType == HSSFCell.CELL_TYPE_BLANK) {
-                result = "";
-            }
-        } catch (Exception e) {
-            System.out.println("日期格式不正确!");
-            e.printStackTrace();
-        }
-        return result;
-    }
-
-    /**
      * 根据HSSFCell类型设置数据
      *
      * @param cell
@@ -307,5 +243,69 @@ public class ExcelUtils {
             System.out.println("未找到指定路径的文件!");
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 获取单元格数据内容为字符串类型的数据
+     *
+     * @param cell Excel单元格
+     * @return String 单元格数据内容
+     */
+    private String getStringCellValue(HSSFCell cell) {
+        String strCell = "";
+        if (cell == null) {
+            return "";
+        }
+        switch (cell.getCellType()) {
+            case HSSFCell.CELL_TYPE_STRING:
+                strCell = cell.getStringCellValue();
+                break;
+            case HSSFCell.CELL_TYPE_NUMERIC:
+                strCell = String.valueOf(cell.getNumericCellValue());
+                break;
+            case HSSFCell.CELL_TYPE_BOOLEAN:
+                strCell = String.valueOf(cell.getBooleanCellValue());
+                break;
+            case HSSFCell.CELL_TYPE_BLANK:
+                strCell = "";
+                break;
+            default:
+                strCell = "";
+                break;
+        }
+        if (strCell.equals("") || strCell == null) {
+            return "";
+        }
+        return strCell;
+    }
+
+    /**
+     * 获取单元格数据内容为日期类型的数据
+     *
+     * @param cell Excel单元格
+     * @return String 单元格数据内容
+     */
+    private String getDateCellValue(HSSFCell cell) {
+        String result = "";
+        try {
+            int cellType = cell.getCellType();
+            if (cellType == HSSFCell.CELL_TYPE_NUMERIC) {
+                Date date = cell.getDateCellValue();
+                result = (date.getYear() + 1900) + "-" + (date.getMonth() + 1) + "-" + date.getDate();
+            } else if (cellType == HSSFCell.CELL_TYPE_STRING) {
+                String date = getStringCellValue(cell);
+                result = date.replaceAll("[年月]", "-").replace("日", "").trim();
+            } else if (cellType == HSSFCell.CELL_TYPE_BLANK) {
+                result = "";
+            }
+        } catch (Exception e) {
+            System.out.println("日期格式不正确!");
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    public enum Type {
+        XLS, XLSX
     }
 }
