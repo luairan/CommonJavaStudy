@@ -15,12 +15,7 @@ public class MergeSort {
 //		}
         FileInputStream fis = null;
 
-        /**
-         *
-         *
-         * 对Object类型进行排序。快速排序不稳定，对基本类型无影响，对Object类型有影响。归并排序稳定。
-         对大数组排序。快速排序的sort()采用递归实现，数组规模太大时会发生堆栈溢出，而归并排序sort()采用非递归实现，不存在此问题。
-         */
+        // This top-down merge sort is recursive, with O(log n) stack depth.
 
         fis = new FileInputStream("/Users/luairan/Desktop/a.txt");
         BufferedInputStream bis = new BufferedInputStream(fis);
@@ -53,7 +48,7 @@ public class MergeSort {
 
     public void mergeSort(int[] array, int start, int end) {
         if (start < end) {
-            int center = (start + end) / 2;
+            int center = start + (end - start) / 2;
             mergeSort(array, start, center);
             mergeSort(array, center + 1, end);
             merge(array, start, center, end);
@@ -65,7 +60,7 @@ public class MergeSort {
         int position = 0;
         int starta = start, startb = center + 1;
         while (starta <= center && startb <= end) {
-            if (array[starta] < array[startb]) {
+            if (array[starta] <= array[startb]) {
                 newarray[position] = array[starta];
                 position++;
                 starta++;

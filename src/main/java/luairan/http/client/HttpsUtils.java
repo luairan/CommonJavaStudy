@@ -1,148 +1,76 @@
 package luairan.http.client;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.CookieHandler;
-import java.net.CookieManager;
-import java.net.CookiePolicy;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
+import java.util.Objects;
 
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-
-/**
- * 
- * 
- * 
- * 
- * 
- * http https 工具 code by canmo
- * 
- * 不使用apache httpclient 来处理。
- * 
- * 
- * 不用担心连接复用的问题
- * 
- */
-
+/** Uses the JDK default certificate and hostname verification for HTTPS. */
 public class HttpsUtils {
-	public static byte[] doUrl(String url,  ByteArrayOutputStream param, String charSet,
-			Method method) throws KeyManagementException,
-			NoSuchAlgorithmException, IOException {
-		System.setProperty("http.maxRedirects", "100");
-		boolean isHttps = url.startsWith("https");
-		CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
-		if (method == Method.GET && param != null) {
-			url = url + "?" + new String(param.toByteArray());
-		}
+    public static byte[] doUrl(String url, ByteArrayOutputStream param, String charSet,
+                               Method method) throws KeyManagementException,
+            NoSuchAlgorithmException, IOException {
+        Objects.requireNonNull(method, "method");
+        Charset charset = charSet == null || charSet.isEmpty()
+                ? StandardCharsets.UTF_8 : Charset.forName(charSet);
+        byte[] body = param == null ? new byte[0] : param.toByteArray();
+        if (method == Method.GET && body.length > 0) {
+            int hash = url.indexOf('#');
+            String fragment = hash < 0 ? "" : url.substring(hash);
+            String base = hash < 0 ? url : url.substring(0, hash);
+            String separator = base.contains("?")
+                    ? (base.endsWith("?") || base.endsWith("&") ? "" : "&") : "?";
+            url = base + separator + new String(body, charset) + fragment;
+        }
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        try {
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
+            conn.setRequestMethod(method.name());
+            conn.setRequestProperty("Accept", "*/*");
+            if (method == Method.POST) {
+                conn.setDoOutput(true);
+                conn.setUseCaches(false);
+                conn.setRequestProperty("Content-Type",
+                        "application/x-www-form-urlencoded; charset=" + charset.name());
+                try (OutputStream out = conn.getOutputStream()) {
+                    out.write(body);
+                }
+            }
+            try (InputStream in = conn.getInputStream();
+                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int length;
+                while ((length = in.read(buffer)) != -1) out.write(buffer, 0, length);
+                return out.toByteArray();
+            }
+        } finally {
+            conn.disconnect();
+        }
+    }
 
-		URL console = new URL(url);
-		
-		HttpURLConnection conn = (HttpURLConnection) console.openConnection();
-		
-		
-		if (isHttps) {
-			SSLContext sc = SSLContext.getInstance("SSL");
-			sc.init(null, new TrustManager[] { new TrustAnyTrustManager() },
-					new java.security.SecureRandom());
-			((HttpsURLConnection) conn).setSSLSocketFactory(sc
-					.getSocketFactory());
-			((HttpsURLConnection) conn)
-					.setHostnameVerifier(new TrustAnyHostnameVerifier());
-		}
+    public static byte[] doUrl(String url, HttpsParam param, Method method)
+            throws KeyManagementException, NoSuchAlgorithmException, IOException {
+        return doUrl(url, param, "UTF-8", method);
+    }
 
-		if (method == Method.POST) {
-			conn.setDoOutput(true);
-			conn.setDoInput(true);
-			conn.setUseCaches(false);
-			conn.setRequestMethod("POST");
-		}
-		conn.setRequestProperty("accept", "*/*");
-		conn.setRequestProperty("connection", "Keep-Alive");
-		conn.setRequestProperty("Accept-Language","zh-CN");  
-		conn.setRequestProperty("Content-Type","text/plain; charset=utf-8");  
-		if (charSet != null && !charSet.equals(""))
-			conn.setRequestProperty("Content-Type", "text/plain; charset="+charSet);
-		
-		conn.connect();
-		
-		if (method == Method.POST) {
-			DataOutputStream out = new DataOutputStream(conn.getOutputStream());
-				out.write(param.toByteArray());
-			// 刷新、关闭
-			out.flush();
-			out.close();
-		}
+    public static byte[] doUrl(String url, HttpsParam param, String charSet, Method method)
+            throws KeyManagementException, NoSuchAlgorithmException, IOException {
+        String encoding = charSet == null || charSet.isEmpty() ? "UTF-8" : charSet;
+        return doUrl(url, param == null ? null : param.toByte(encoding), encoding, method);
+    }
 
-		InputStream is = conn.getInputStream();
-		ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-		if (is != null) {
-			
-			byte[] buffer = new byte[1024];
-			int len = 0;
-			while ((len = is.read(buffer)) != -1) {
-				outStream.write(buffer, 0, len);
-			}
-			is.close();
-		}
-		conn.disconnect();
-		return outStream.toByteArray();
-	}
+    public enum Method { GET, POST }
 
-
-	public static byte[] doUrl(String url, HttpsParam param,
-			Method method) throws KeyManagementException,
-			NoSuchAlgorithmException, IOException {
-		if(param==null)  param = new HttpsParam();
-		return doUrl(url, param.toByte(), null, method);
-	}
-
-	public static byte[] doUrl(String url, HttpsParam param,
-			String charSet, Method method) throws KeyManagementException,
-			NoSuchAlgorithmException, IOException {
-		if(param==null)  param = new HttpsParam();
-		return doUrl(url, param.toByte(charSet),charSet, method);
-	}
-
-	private static class TrustAnyTrustManager implements X509TrustManager {
-
-		public void checkClientTrusted(X509Certificate[] chain, String authType)
-				throws CertificateException {
-		}
-
-		public void checkServerTrusted(X509Certificate[] chain, String authType)
-				throws CertificateException {
-		}
-
-		public X509Certificate[] getAcceptedIssuers() {
-			return new X509Certificate[] {};
-		}
-	}
-
-	private static class TrustAnyHostnameVerifier implements HostnameVerifier {
-		public boolean verify(String hostname, SSLSession session) {
-			return true;
-		}
-	}
-
-	public enum Method {
-		GET, POST;
-	}
-
-	public static void main(String[] args) throws KeyManagementException,
-			NoSuchAlgorithmException, IOException {
-		 byte [] s = HttpsUtils.doUrl("https://www.baidu.com/", null ,Method.GET);
-		 System.out.println(new String(s,"utf-8"));
-	}
+    public static void main(String[] args) throws Exception {
+        System.out.println(new String(doUrl("https://www.baidu.com/", null, Method.GET),
+                StandardCharsets.UTF_8));
+    }
 }

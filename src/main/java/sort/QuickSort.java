@@ -46,26 +46,29 @@ public class QuickSort {
     }
 
     public void qSort(int[] a, int start, int end) {
-        int i = start + 1;
-        int j = end;
-        int temp = 0;
-        while (i <= j) {
-            while (i <= j && a[i] <= a[start])
-                i++;
-            while (j >= i && a[j] >= a[start])
-                j--;
-            if (i < j) {
-                temp = a[i];
-                a[i] = a[j];
-                a[j] = temp;
+        while (start < end) {
+            int pivot = a[java.util.concurrent.ThreadLocalRandom.current()
+                    .nextInt(start, end + 1)];
+            int less = start, scan = start, greater = end;
+            while (scan <= greater) {
+                if (a[scan] < pivot) swap(a, less++, scan++);
+                else if (a[scan] > pivot) swap(a, scan, greater--);
+                else scan++;
+            }
+            // Recurse into the smaller partition to keep stack usage O(log n).
+            if (less - start < end - greater) {
+                qSort(a, start, less - 1);
+                start = greater + 1;
+            } else {
+                qSort(a, greater + 1, end);
+                end = less - 1;
             }
         }
-        if (start < end) {
-            temp = a[start];
-            a[start] = a[j];
-            a[j] = temp;
-            qSort(a, start, j - 1);
-            qSort(a, j + 1, end);
-        }
+    }
+
+    private void swap(int[] a, int i, int j) {
+        int value = a[i];
+        a[i] = a[j];
+        a[j] = value;
     }
 }
