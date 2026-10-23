@@ -17,7 +17,7 @@ public class MoreRegressionTest {
         throw new AssertionError("Expected " + type.getName());
     }
     public static void main(String[] args) throws Exception {
-        algorithms(); files(); utilities(); excel(); http(); workers(); operations(); echoClient(); servers();
+        algorithms(); files(); utilities(); excel(); http(); workers(); operations(); echoClient(); echoLifecycle(); servers();
         System.out.println("PASS: remaining algorithms, file integrity, utilities, XLS/XLSX, HTTP, workers, multi-client IO");
     }
     static void algorithms() throws Exception {
@@ -52,6 +52,8 @@ public class MoreRegressionTest {
         ForkJoinPool pool = new ForkJoinPool(2);
         try {
             check(pool.invoke(new thread.forkjoin.CountTask(1,100)) == 5050,"fork join");
+            check(pool.invoke(new thread.forkjoin.CountTask(-100000,100000)) == 0,
+                    "intermediate sums must not overflow when final result fits int");
             check(pool.invoke(new thread.forkjoin.CountTask(Integer.MAX_VALUE,Integer.MAX_VALUE)) == Integer.MAX_VALUE,"max endpoint");
             check(pool.invoke(new thread.forkjoin.CountTask(Integer.MIN_VALUE,Integer.MIN_VALUE)) == Integer.MIN_VALUE,"min endpoint");
             rejects(ArithmeticException.class,() -> pool.invoke(new thread.forkjoin.CountTask(Integer.MAX_VALUE-1,Integer.MAX_VALUE)));
@@ -264,6 +266,56 @@ public class MoreRegressionTest {
             check(!reactor.isAlive(),"echo client cancellation");
         }
     }
+    static void echoLifecycle() throws Exception {
+        for (boolean prematureEof : new boolean[]{true,false}) {
+            try (ServerSocket listener = new ServerSocket(0)) {
+                int port = listener.getLocalPort();
+                AtomicReference<Throwable> peerFailure = new AtomicReference<>();
+                Thread peer = null;
+                if (prematureEof) {
+                    peer = new Thread(() -> {
+                        try (Socket socket = listener.accept()) {
+                            socket.setSoTimeout(3000);
+                            check(socket.getInputStream().readNBytes(2).length == 2,"request before EOF");
+                            socket.getOutputStream().write('x');
+                        } catch (Throwable failure) { peerFailure.set(failure); }
+                    });
+                    peer.setDaemon(true); peer.start();
+                } else listener.close(); // Refused connection: no service is listening.
+                nioSample.nio.sample.echo.NioClient client = new nioSample.nio.sample.echo.NioClient(
+                        InetAddress.getLoopbackAddress(),port);
+                Thread reactor = new Thread(client); reactor.setDaemon(true); reactor.start();
+                CountDownLatch failed = new CountDownLatch(1);
+                AtomicReference<Throwable> cause = new AtomicReference<>();
+                nioSample.nio.sample.echo.RspHandler handler = new nioSample.nio.sample.echo.RspHandler() {
+                    public synchronized void handleFailure(Throwable error) {
+                        super.handleFailure(error); cause.set(error); failed.countDown();
+                    }
+                };
+                try {
+                    try { client.send(new byte[]{1,2},handler); }
+                    catch (IOException expected) { handler.handleFailure(expected); }
+                    check(failed.await(3,TimeUnit.SECONDS),"failed connection left waiter asleep");
+                    check(cause.get() instanceof IOException,"connection failure cause");
+                    rejects(IllegalStateException.class,handler::waitForResponse);
+                } finally {
+                    reactor.interrupt(); reactor.join(3000);
+                    if (peer != null) peer.join(3000);
+                }
+                check(!reactor.isAlive(),"client must stop after failed request");
+                check(peerFailure.get() == null,"EOF test peer failed: " + peerFailure.get());
+            }
+        }
+        try (ServerSocket listener = new ServerSocket(0)) {
+            nioSample.nio.sample.echo.NioClient stopped = new nioSample.nio.sample.echo.NioClient(
+                    InetAddress.getLoopbackAddress(),listener.getLocalPort());
+            Thread reactor = new Thread(stopped); reactor.start(); reactor.interrupt(); reactor.join(3000);
+            check(!reactor.isAlive(),"stopped client reactor");
+            rejects(IOException.class,() -> stopped.send(new byte[]{1},new nioSample.nio.sample.echo.RspHandler()));
+            rejects(IOException.class,() -> stopped.send(new byte[0],new nioSample.nio.sample.echo.RspHandler()));
+        }
+    }
+
     static class JvmServer implements AutoCloseable {
         final int port;
         final Process process;

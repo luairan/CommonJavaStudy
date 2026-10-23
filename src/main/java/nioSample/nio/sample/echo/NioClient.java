@@ -45,14 +45,18 @@ public class NioClient implements Runnable {
      * @param handler
      * @throws IOException
      */
+    // Guarded by pendingChanges so stopping and submitting a request are atomic.
+    private boolean stopped;
+
     // This client speaks raw echo: the expected response length equals request length.
     private final Map<SocketChannel, Integer> expectedBytes = new ConcurrentHashMap<>();
     private final Map<SocketChannel, ByteArrayOutputStream> responses = new ConcurrentHashMap<>();
 
     public void send(byte[] data, RspHandler handler) throws IOException {
         Objects.requireNonNull(data,"data"); Objects.requireNonNull(handler,"handler");
-        if (data.length == 0) { handler.handleResponse(new byte[0]); return; }
         synchronized (this.pendingChanges) {
+            if (stopped || !selector.isOpen()) throw new IOException("Client has stopped");
+            if (data.length == 0) { handler.handleResponse(new byte[0]); return; }
             SocketChannel socket = this.initiateConnection();
             this.rspHandlers.put(socket, handler);
             expectedBytes.put(socket,data.length);
@@ -69,11 +73,14 @@ public class NioClient implements Runnable {
     private void close(SocketChannel socket, Throwable failure) throws IOException {
         SelectionKey key = socket.keyFor(selector);
         if (key != null) key.cancel();
-        socket.close();
-        synchronized (pendingData) { pendingData.remove(socket); }
-        expectedBytes.remove(socket); responses.remove(socket);
-        RspHandler handler = (RspHandler) rspHandlers.remove(socket);
-        if (failure != null && handler != null) handler.handleFailure(failure);
+        try {
+            socket.close();
+        } finally {
+            synchronized (pendingData) { pendingData.remove(socket); }
+            expectedBytes.remove(socket); responses.remove(socket);
+            RspHandler handler = (RspHandler) rspHandlers.remove(socket);
+            if (failure != null && handler != null) handler.handleFailure(failure);
+        }
     }
 
     public void run() {
@@ -129,6 +136,7 @@ public class NioClient implements Runnable {
         } finally {
             try {
                 synchronized (pendingChanges) {
+                    stopped = true;
                     for (Object item : pendingChanges) close(((ChangeRequest) item).socket,new IOException("Client stopped"));
                     pendingChanges.clear();
                 }

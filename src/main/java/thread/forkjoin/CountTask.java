@@ -10,35 +10,45 @@ public class CountTask extends RecursiveTask<Integer> {
 	 *
 	 */
 	private static final long serialVersionUID = 1L;
-	private static final int THRESHOLD = 2;
-	private final int start;
-	private final int end;
+    private final int start;
+    private final int end;
 
-	public CountTask(int start, int end) {
+    public CountTask(int start, int end) {
         if (start > end) throw new IllegalArgumentException("start must not exceed end");
-		this.start = start;
-		this.end = end;
-	}
+        this.start = start;
+        this.end = end;
+    }
 
-	@Override
-	protected Integer compute() {
-		int sum = 0;
-		boolean canCompute = ((long) end - start) <= THRESHOLD;
-		if (canCompute) {
-			for (long i = start; i <= end; i++) {
-				sum = Math.addExact(sum, Math.toIntExact(i));
-			}
-		} else {
-			int middle = (int) (start + ((long) end - start) / 2);
-			CountTask left = new CountTask(start, middle);
-			CountTask right = new CountTask(middle + 1, end);
-			left.fork();
-            int rightr = right.compute();
-            int leftr = left.join();
-            sum = Math.addExact(leftr, rightr);
-		}
-		return sum;
-	}
+    @Override
+    protected Integer compute() {
+        // A subrange can exceed int even when positive and negative halves cancel.
+        // Only the final result is constrained by this class's Integer return type.
+        return Math.toIntExact(new SumRange(start,end).compute());
+    }
+
+    private static final class SumRange extends RecursiveTask<Long> {
+        private static final long serialVersionUID = 1L;
+        private static final int THRESHOLD = 4096;
+        private final int start;
+        private final int end;
+
+        SumRange(int start, int end) { this.start = start; this.end = end; }
+
+        @Override
+        protected Long compute() {
+            if ((long) end - start <= THRESHOLD) {
+                long sum = 0;
+                for (long value = start; value <= end; value++) sum += value;
+                return sum;
+            }
+            int middle = (int) (start + ((long) end - start) / 2);
+            SumRange left = new SumRange(start,middle);
+            SumRange right = new SumRange(middle+1,end);
+            left.fork();
+            long rightSum = right.compute();
+            return left.join() + rightSum;
+        }
+    }
 	public static void main(String[] args) {
 		ForkJoinPool forkJoinPool =new ForkJoinPool();
 		CountTask task=new CountTask(1, 4);
