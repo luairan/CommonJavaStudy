@@ -1,84 +1,74 @@
 package thread.producercostomer;
 
-
 import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-
 public class ProducerCustomer2 {
+    private final int limit = 10;
+    private int have;
+    private int start;
+    private final Task[] tasklist = new Task[limit];
 
-	public static int limit = 10;
-	public static int have = 0;
-	public static int start = 0;
-	Task[] tasklist = new Task[limit];
-	private final Lock lock = new ReentrantLock();
-	private final Condition full = lock.newCondition();
-	private final Condition empty = lock.newCondition();
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition notFull = lock.newCondition();
+    private final Condition notEmpty = lock.newCondition();
 
-	class Producer implements Runnable {
-		@Override
-		public void run() {
-			while (true) {
-				lock.lock();
-				if (ProducerCustomer2.have < ProducerCustomer2.limit) {
-					Task temp = new Task(
-							"mytest"
-									+ (ProducerCustomer2.start + ProducerCustomer2.have)
-									% ProducerCustomer2.limit + "\t"
-									+ Thread.currentThread().getName());
-					tasklist[(ProducerCustomer2.start + ProducerCustomer2.have)
-							% ProducerCustomer2.limit] = temp;
-					ProducerCustomer2.have++;
-					empty.signalAll();
-				} else {
-					try {
-						full.await();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-				lock.unlock();
-			}
+    public void put(Task task) throws InterruptedException {
+        lock.lockInterruptibly();
+        try {
+            while (have == limit) notFull.await();
+            tasklist[(start + have) % limit] = task;
+            have++;
+            notEmpty.signalAll();
+        } finally {
+            lock.unlock();
+        }
+    }
 
-		}
+    public Task take() throws InterruptedException {
+        lock.lockInterruptibly();
+        try {
+            while (have == 0) notEmpty.await();
+            Task task = tasklist[start];
+            tasklist[start] = null;
+            start = (start + 1) % limit;
+            have--;
+            notFull.signalAll();
+            return task;
+        } finally {
+            lock.unlock();
+        }
+    }
 
-	}
+    class Producer implements Runnable {
+        public void run() {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    put(new Task("mytest:" + Thread.currentThread().getId()));
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 
-	class Customer implements Runnable {
-		@Override
-		public void run() {
-			while (true) {
-				Task temp = null;
-				lock.lock();
-				if (ProducerCustomer2.have > 0) {
-					temp = tasklist[ProducerCustomer2.start];
-					ProducerCustomer2.start = (ProducerCustomer2.start + 1)
-							% ProducerCustomer2.limit;
-					ProducerCustomer2.have--;
-					System.out.println(temp.taskname + ":"
-							+ Thread.currentThread().getName());
-					full.signalAll();
-				} else {
-					try {
-						empty.await();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-				lock.unlock();
-			}
-		}
-	}
+    class Customer implements Runnable {
+        public void run() {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    Task task = take();
+                    System.out.println(task.taskname + ":" + Thread.currentThread().getId());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 
-	class Task {
-		public String taskname;
-
-		public Task(String taskname) {
-			this.taskname = taskname;
-		}
-	}
-
+    public static class Task {
+        public final String taskname;
+        public Task(String taskname) { this.taskname = taskname; }
+    }
 	public static void main(String[] args) {
 		ProducerCustomer2 p = new ProducerCustomer2();
 		Producer producer = p.new Producer();

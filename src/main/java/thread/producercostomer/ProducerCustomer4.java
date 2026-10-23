@@ -3,55 +3,73 @@ package thread.producercostomer;
 import java.util.concurrent.Semaphore;
 
 public class ProducerCustomer4 {
-	Semaphore mutex = new Semaphore(1);// ������
-	Semaphore notfull = new Semaphore(10);
-	Semaphore notempty = new Semaphore(0);
-	String[] array = new String[10];
-	int putptr, takeptr, count = 0;
-	class Producer implements Runnable {
-		@Override
-		public void run() {
-			while (true) {
-				try {
-					notfull.acquire();
-					mutex.acquire();
-					if (putptr == array.length)
-						putptr = 0;
-					String temp = new String("temp" + ":" + putptr + ":"
-							+ Thread.currentThread().getId());
-					array[putptr] = temp;
-					putptr++;
-					count++;
-					mutex.release();
-					notempty.release();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	}
+    final Semaphore mutex = new Semaphore(1);
+    final Semaphore notfull = new Semaphore(10);
+    final Semaphore notempty = new Semaphore(0);
+    final String[] array = new String[10];
+    int putptr, takeptr, count;
 
-	class Consumer implements Runnable {
-		@Override
-		public void run() {
-			while (true) {
-				try {
-					notempty.acquire();
-					mutex.acquire();
-					if (takeptr == array.length)
-						takeptr = 0;
-					System.out.println(array[takeptr] + ":" + takeptr + ":"
-							+ Thread.currentThread().getId());
-					takeptr++;
-					count--;
-					mutex.release();
-					notfull.release();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	}
+    public void put(String value) throws InterruptedException {
+        notfull.acquire();
+        boolean locked = false;
+        boolean committed = false;
+        try {
+            mutex.acquire();
+            locked = true;
+            array[putptr] = value;
+            putptr = (putptr + 1) % array.length;
+            count++;
+            committed = true;
+        } finally {
+            if (locked) mutex.release();
+            if (committed) notempty.release();
+            else notfull.release();
+        }
+    }
+
+    public String take() throws InterruptedException {
+        notempty.acquire();
+        boolean locked = false;
+        boolean committed = false;
+        try {
+            mutex.acquire();
+            locked = true;
+            String value = array[takeptr];
+            array[takeptr] = null;
+            takeptr = (takeptr + 1) % array.length;
+            count--;
+            committed = true;
+            return value;
+        } finally {
+            if (locked) mutex.release();
+            if (committed) notfull.release();
+            else notempty.release();
+        }
+    }
+
+    class Producer implements Runnable {
+        public void run() {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    put("temp:" + Thread.currentThread().getId());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    class Consumer implements Runnable {
+        public void run() {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    System.out.println(take() + ":" + Thread.currentThread().getId());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 
 	public static void main(String[] args) {
 		ProducerCustomer4 s = new ProducerCustomer4();

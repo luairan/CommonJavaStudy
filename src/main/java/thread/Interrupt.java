@@ -17,16 +17,13 @@ public class Interrupt extends Thread {
 		}
 	}
 
-	private boolean isPrime(long number) { //�ж�һ�����Ƿ�������
-		if(number <= 2) {
-			return true;
-		}
-		for(long i = number-1; i > 1L; i--) {
-			if(number%i == 0) {
-				return false;
-			}
-		}
-		return true;
-	}
-	
+    private boolean isPrime(long number) {
+        if (number < 2) return false;
+        if (number == 2) return true;
+        if (number % 2 == 0) return false;
+        for (long i = 3; i <= number / i; i += 2) {
+            if (isInterrupted() || number % i == 0) return false;
+        }
+        return true;
+    }
 }

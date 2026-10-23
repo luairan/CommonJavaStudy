@@ -10,12 +10,13 @@ public class ProducerCustomer3 {
 	class Customer implements Runnable {
 		@Override
 		public void run() {
-			while (true) {
+			while (!Thread.currentThread().isInterrupted()) {
 				try {
 					Tasks ss=queue.take();
 					System.out.println(ss.taskname+":"+Thread.currentThread().getId());
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					Thread.currentThread().interrupt();
+                    return;
 				}
 			}
 		}
@@ -24,14 +25,15 @@ public class ProducerCustomer3 {
 	class Producer implements Runnable {
 		@Override
 		public void run() {
-			while (true) {
+			while (!Thread.currentThread().isInterrupted()) {
 				Tasks o = new Tasks("test"+Thread.currentThread().getId());
 	             try {
 					queue.put(o);
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					Thread.currentThread().interrupt();
+                    return;
 				}
-				
+
 			}
 		}
 	}
