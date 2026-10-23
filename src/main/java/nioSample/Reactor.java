@@ -9,18 +9,21 @@ import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
 
-class Reactor implements Runnable {
+public class Reactor implements Runnable {
 	final Selector selector;
 	final ServerSocketChannel serverSocket;
 
-	Reactor(int port) throws IOException {
+	public Reactor(int port) throws IOException {
 		selector = Selector.open();
 		serverSocket = ServerSocketChannel.open();
-		serverSocket.socket().bind(new InetSocketAddress(port));
-		serverSocket.configureBlocking(false);
-		SelectionKey sk = serverSocket.register(selector,
-				SelectionKey.OP_ACCEPT);
-		sk.attach(new Acceptor());
+        try {
+            serverSocket.socket().bind(new InetSocketAddress(port));
+            serverSocket.configureBlocking(false);
+            SelectionKey sk = serverSocket.register(selector,SelectionKey.OP_ACCEPT);
+            sk.attach(new Acceptor());
+        } catch (IOException | RuntimeException e) {
+            serverSocket.close(); selector.close(); throw e;
+        }
 	}
 
 	public void run() { // normally in a new
@@ -29,12 +32,21 @@ class Reactor implements Runnable {
 				selector.select();
 				Set selected = selector.selectedKeys();
 				Iterator it = selected.iterator();
-				while (it.hasNext())
-					dispatch((SelectionKey) (it.next()));
+				while (it.hasNext()) {
+                    SelectionKey key = (SelectionKey) it.next();
+                    it.remove();
+                    if (key.isValid()) dispatch(key);
+                }
 				selected.clear();
 			}
-		} catch (IOException ex) { /* ... */
-		}
+		} catch (IOException ex) {
+            throw new java.io.UncheckedIOException(ex);
+        } finally {
+            try {
+                for (SelectionKey key : selector.keys()) key.channel().close();
+                selector.close();
+            } catch (IOException e) { throw new java.io.UncheckedIOException(e); }
+        }
 	}
 
 	void dispatch(SelectionKey k) {
@@ -43,14 +55,21 @@ class Reactor implements Runnable {
 			r.run();
 	}
 
-	class Acceptor implements Runnable { // inner
-		public void run() {
-			try {
-				SocketChannel c = serverSocket.accept();
-				if (c != null)
-					new Handler(selector, c);
-			} catch (IOException ex) { /* ... */
-			}
-		}
-	}
+    class Acceptor implements Runnable {
+        public void run() {
+            SocketChannel client = null;
+            try {
+                client = serverSocket.accept();
+                if (client != null) new Handler(selector,client);
+            } catch (IOException e) {
+                if (client != null) {
+                    try { client.close(); } catch (IOException closeFailure) { e.addSuppressed(closeFailure); }
+                }
+                System.err.println("Cannot accept client: " + e.getMessage());
+            }
+        }
+    }
+    public static void main(String[] args) throws IOException {
+        new Reactor(args.length == 0 ? 9000 : Integer.parseInt(args[0])).run();
+    }
 }

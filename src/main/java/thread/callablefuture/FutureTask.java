@@ -13,13 +13,15 @@ public static void main(String[] args) {
 	});
 	try {
 		System.out.println(future.get());
-		s.shutdown();
+
 	} catch (InterruptedException e) {
 		// TODO Auto-generated catch block
-		e.printStackTrace();
+		Thread.currentThread().interrupt();
 	} catch (ExecutionException e) {
 		// TODO Auto-generated catch block
 		e.printStackTrace();
-	}
+    } finally {
+        s.shutdownNow();
+    }
 }
 }

@@ -1,45 +1,25 @@
 package nioSample.nio.sample.filecopy;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.MappedByteBuffer;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.*;
 
 public class MappedFileCopy extends CommonCopy {
-
-    public MappedFileCopy(String fromFile, String toFile){
-        super(fromFile, toFile);
-    }
+    public MappedFileCopy(String fromFile, String toFile) { super(fromFile, toFile); }
 
     @Override
-    public void run() {
-        try {
-
-            File fileIn = new File(fromFile);
-            File fileOut = new File(toFile);
-
-            RandomAccessFile raf = new RandomAccessFile(fileIn, "rw");
-            // FileInputStream fin = new FileInputStream(fileIn);
-            FileOutputStream fout = new FileOutputStream(fileOut);
-
-            FileChannel fcIn = raf.getChannel();
-            FileChannel fcOut = fout.getChannel();
-
-            MappedByteBuffer mbb = fcIn.map(FileChannel.MapMode.READ_WRITE, 0, 8192);
-
-            while (fcIn.read(mbb) != -1) {
-                mbb.flip();
-                fcOut.write(mbb);
-                mbb.clear();
+    protected void copy(Path from, Path to) throws IOException {
+        try (FileChannel in = FileChannel.open(from, StandardOpenOption.READ);
+             FileChannel out = FileChannel.open(to, StandardOpenOption.WRITE,
+                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+            long size = in.size();
+            for (long offset = 0; offset < size;) {
+                long length = Math.min(16L * 1024 * 1024, size - offset);
+                ByteBuffer mapped = in.map(FileChannel.MapMode.READ_ONLY, offset, length);
+                while (mapped.hasRemaining()) out.write(mapped);
+                offset += length;
             }
-
-        } catch (IOException e) {
-            e.printStackTrace();
         }
-        flag = true;
-
     }
-
 }

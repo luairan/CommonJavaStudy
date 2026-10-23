@@ -40,7 +40,7 @@ public class Ping {
     static int port         = DAYTIME_PORT;
 
     // Representation of a ping target
-    // 
+    //
     static class Target {
 
         InetSocketAddress address;
@@ -48,7 +48,7 @@ public class Ping {
         Exception         failure;
         long              connectStart;
         long              connectFinish = 0;
-        boolean           shown         = false;
+        volatile boolean  shown         = false;
 
         Target(String host){
             try {
@@ -58,7 +58,8 @@ public class Ping {
             }
         }
 
-        void show() {
+        synchronized void show() {
+            if (shown) return;
             String result;
             if (connectFinish != 0) result = Long.toString(connectFinish - connectStart) + "ms";
             else if (failure != null) result = failure.toString();
@@ -106,7 +107,7 @@ public class Ping {
     }
 
     // Thread for connecting to all targets in parallel via a single selector
-    // 
+    //
     static class Connector extends Thread {
 
         Selector   sel;
@@ -128,6 +129,7 @@ public class Ping {
         // target to the pending-target list
         //
         void add(Target t) {
+            if (t.failure != null) { printer.add(t); return; }
             SocketChannel sc = null;
             try {
 
@@ -135,11 +137,11 @@ public class Ping {
                 sc = SocketChannel.open();
                 sc.configureBlocking(false);
 
+                t.connectStart = System.currentTimeMillis();
                 boolean connected = sc.connect(t.address);
 
                 // Record the time we started
                 t.channel = sc;
-                t.connectStart = System.currentTimeMillis();
 
                 if (connected) {
                     t.connectFinish = t.connectStart;
@@ -242,6 +244,7 @@ public class Ping {
                     if (n > 0) processSelectedKeys();
                     processPendingTargets();
                     if (shutdown) {
+                        for (Object item : sel.keys()) ((SelectionKey) item).channel().close();
                         sel.close();
                         return;
                     }

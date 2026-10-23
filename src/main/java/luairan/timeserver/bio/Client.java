@@ -1,41 +1,23 @@
 package luairan.timeserver.bio;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.Scanner;
-/**
- * �򵥵Ļ���java BIO �׽��� cilent
- * @author airan.lar
- *
- */
+import java.nio.charset.StandardCharsets;
+
 public class Client {
-	public static void main(String[] args) throws UnknownHostException,
-			IOException {
-		@SuppressWarnings("resource")
-		Socket socket = new Socket("localhost", 9000);
-		BufferedReader reader = new BufferedReader(new InputStreamReader(
-				socket.getInputStream()));
-		BufferedWriter write = new BufferedWriter(new OutputStreamWriter(
-				socket.getOutputStream()));
-		@SuppressWarnings("resource")
-		Scanner scanner = new Scanner(System.in);
-		System.out.println("input you want to send to server");
-		System.out.println("type 'quit' to exit");
-		while (true) {
-			String input = scanner.nextLine();
-			write.write(input + "\n");
-			write.flush();
-			String out = reader.readLine();
-			if (out.equals("ok") && input.equals("quit"))
-				break;
-			System.out.println("���������ص���Ϣ" + out);
-		}
-		reader.close();
-		write.close();
-	}
+    public static void main(String[] args) throws IOException {
+        try (Socket socket = new Socket("localhost", args.length == 0 ? 9000 : Integer.parseInt(args[0]));
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(),StandardCharsets.UTF_8));
+             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(),StandardCharsets.UTF_8))) {
+            BufferedReader console = new BufferedReader(new InputStreamReader(System.in,StandardCharsets.UTF_8));
+            String line;
+            while ((line = console.readLine()) != null) {
+                out.write(line + "\n"); out.flush();
+                String response = in.readLine();
+                if (response == null) break;
+                System.out.println(response);
+                if (line.equals("quit")) break;
+            }
+        }
+    }
 }

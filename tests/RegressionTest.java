@@ -194,6 +194,10 @@ public class RegressionTest {
                         "unexpected TLS failure: " + e.getCause());
             }
         }
+        try {
+            util.HttpUtils.doUrl("https://localhost:" + port + "/",(String)null,util.HttpUtils.Method.GET);
+            throw new AssertionError("legacy HTTP facade accepted invalid TLS identity");
+        } catch (javax.net.ssl.SSLHandshakeException expected) { }
     }
 
     static void nio() throws Exception {

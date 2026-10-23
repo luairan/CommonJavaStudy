@@ -20,13 +20,15 @@ public class EchoWorker implements Runnable {
     public void run() {
         ServerDataEvent dataEvent;
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             // Wait for data to become available
             synchronized (queue) {
                 while (queue.isEmpty()) {
                     try {
                         queue.wait();
                     } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
                     }
                 }
                 dataEvent = (ServerDataEvent) queue.remove(0);

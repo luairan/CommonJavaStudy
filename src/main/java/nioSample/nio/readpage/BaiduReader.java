@@ -1,46 +1,23 @@
 package nioSample.nio.readpage;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
+import java.net.URI;
+import java.net.http.*;
+import java.time.Duration;
 
 public class BaiduReader {
-
-	private Charset charset = Charset.forName("GBK");// ����GBK�ַ���
-	private SocketChannel channel;
-
-	public void readHTMLContent() {
-		try {
-			InetSocketAddress socketAddress = new InetSocketAddress(
-					"www.baidu.com", 80);
-			//step1:������
-			channel = SocketChannel.open(socketAddress);
-			//step2:��������ʹ��GBK����
-			channel.write(charset.encode("GET " + "/ HTTP/1.1" + "\r\n\r\n"));
-			//step3:��ȡ����
-			ByteBuffer buffer = ByteBuffer.allocate(1024);// ����1024�ֽڵĻ���
-			while (channel.read(buffer) != -1) {
-				buffer.flip();// flip�����ڶ��������ֽڲ���֮ǰ���á�
-				System.out.println(charset.decode(buffer));
-				// ʹ��Charset.decode�������ֽ�ת��Ϊ�ַ���
-				buffer.clear();// ��ջ���
-			}
-		} catch (IOException e) {
-			System.err.println(e.toString());
-		} finally {
-			if (channel != null) {
-				try {
-					channel.close();
-				} catch (IOException e) {
-				}
-			}
-		}
-	}
-
-
-	public static void main(String[] args) {
-		new BaiduReader().readHTMLContent();
-	}
+    public String read(URI uri) throws IOException, InterruptedException {
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NORMAL).build();
+        HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(10)).GET().build();
+        HttpResponse<String> response = client.send(request,HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() >= 400) throw new IOException("HTTP " + response.statusCode());
+        return response.body();
+    }
+    public void readHTMLContent() {
+        try { System.out.println(read(URI.create("https://www.baidu.com/"))); }
+        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        catch (IOException e) { throw new java.io.UncheckedIOException(e); }
+    }
+    public static void main(String[] args) { new BaiduReader().readHTMLContent(); }
 }

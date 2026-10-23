@@ -13,14 +13,16 @@ public class Call {
 				return "test";
 			}
 		});
-		executorService.execute(funture);
 		try {
+            executorService.execute(funture);
 			String r =funture.get();
 			System.out.println(r);
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+            Thread.currentThread().interrupt();
 		} catch (ExecutionException e) {
 			e.printStackTrace();
-		}
+        } finally {
+            executorService.shutdownNow();
+        }
 	}
 }

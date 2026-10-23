@@ -13,27 +13,7 @@ public class MergeSort {
 //		for(int temp:array){
 //			System.out.print(temp+"\t");
 //		}
-        FileInputStream fis = null;
-
-        // This top-down merge sort is recursive, with O(log n) stack depth.
-
-        fis = new FileInputStream("/Users/luairan/Desktop/a.txt");
-        BufferedInputStream bis = new BufferedInputStream(fis);
-        InputStreamReader isr = new InputStreamReader(bis);
-        BufferedReader br = new BufferedReader(isr);
-
-        String temp = null;
-        int[] array = new int[500000];
-        int s = 0;
-        while ((temp = br.readLine()) != null) {
-            array[s] = Integer.parseInt(temp);
-            s++;
-        }
-        br.close();
-        isr.close();
-        bis.close();
-        fis.close();
-
+        int[] array = SortInput.read(args);
 
         MergeSort mergeSort = new MergeSort();
         long time = System.nanoTime();

@@ -57,27 +57,11 @@ public class HeapSort {
 //		for(int temp:array){
 //			System.out.print(temp+"\t");
 //		}
-//		
+//
 
 
 
-        FileInputStream fis=null;
-        fis = new FileInputStream("/Users/luairan/Desktop/a.txt");
-        BufferedInputStream bis=new BufferedInputStream(fis);
-        InputStreamReader isr=new InputStreamReader(bis);
-        BufferedReader br=new BufferedReader(isr);
-
-        String temp=null;
-        int [] array =new int [500000];
-        int s=0;
-        while ((temp = br.readLine()) != null) {
-            array[s]=Integer.parseInt(temp);
-            s++;
-        }
-        br.close();
-        isr.close();
-        bis.close();
-        fis.close();
+        int[] array = SortInput.read(args);
 
         HeapSort heapSort = new HeapSort();
         long time=System.nanoTime();

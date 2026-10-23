@@ -1,52 +1,35 @@
 package nioSample.nio.sample.filecopy;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.util.*;
 
 public class TestCopy {
-
     public static void main(String[] args) throws IOException, InterruptedException {
-        File f = new File(TestCopy.class.getClassLoader().getSystemResource("fileConfig.properties").getFile());
-        FileInputStream fIn = new FileInputStream(f);
-        byte[] buffer = new byte[8192];
-        fIn.read(buffer);
-
-        String s = new String(buffer);
-
-        String items[] = s.trim().split("\n");
-        List<CommonCopy> fileCopys = new ArrayList<CommonCopy>();
-        long start = System.currentTimeMillis();
-        for (String item : items) {
-            String fromTo[] = item.split(",");
-//             CommonCopy fileCopy = new StreamFileCopy(fromTo[0].trim(), fromTo[1].trim());//time used46563
-             CommonCopy fileCopy = new StreamFileCopyWithBuffer(fromTo[0].trim(), fromTo[1].trim());// time used54447
-//            CommonCopy fileCopy = new NIOFileCopy(fromTo[0].trim(), fromTo[1].trim());
-//             CommonCopy fileCopy = new MappedFileCopy(fromTo[0].trim(), fromTo[1].trim());
-
-            fileCopys.add(fileCopy);
-            Thread copy1 = new Thread(fileCopy);
-            copy1.start();
-            System.out.println(item);
-        }
-
-        while (true) {
-            if (fileCopys.isEmpty()) {
-                break;
+        InputStream config = args.length == 0
+                ? TestCopy.class.getResourceAsStream("/nioSample/fileConfig.properties")
+                : Files.newInputStream(Paths.get(args[0]));
+        if (config == null) throw new FileNotFoundException("Missing copy configuration");
+        List<CommonCopy> copies = new ArrayList<>();
+        List<Thread> workers = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(config, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty() || line.trim().startsWith("#")) continue;
+                String[] paths = line.split(",", -1);
+                if (paths.length != 2) throw new IOException("Expected source,destination: " + line);
+                copies.add(new StreamFileCopyWithBuffer(paths[0].trim(), paths[1].trim()));
             }
-            Iterator<CommonCopy> it = fileCopys.iterator();
-            while (it.hasNext()) {
-                if (it.next().flag) {
-                    it.remove();
-                }
-            }
-            Thread.sleep(500);
         }
-        long end = System.currentTimeMillis();
-        System.out.println("time used" + (end - start));
-
+        long start = System.nanoTime();
+        for (CommonCopy copy : copies) {
+            Thread worker = new Thread(copy);
+            workers.add(worker);
+            worker.start();
+        }
+        for (Thread worker : workers) worker.join();
+        for (CommonCopy copy : copies) if (copy.getFailure() != null) throw copy.getFailure();
+        System.out.println("time used (ms): " + (System.nanoTime() - start) / 1000000);
     }
 }

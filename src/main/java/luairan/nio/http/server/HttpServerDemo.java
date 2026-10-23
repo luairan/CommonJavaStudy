@@ -15,7 +15,7 @@ import com.sun.net.httpserver.HttpServer;
 
 public class HttpServerDemo {
     public static void main(String[] args) throws IOException {
-        InetSocketAddress addr = new InetSocketAddress(8080);
+        InetSocketAddress addr = new InetSocketAddress(args.length == 0 ? 8080 : Integer.parseInt(args[0]));
         HttpServer server = HttpServer.create(addr, 0);
         server.createContext("/test/", new MyHandler());
         server.setExecutor(Executors.newCachedThreadPool());
@@ -26,27 +26,20 @@ public class HttpServerDemo {
 
 class MyHandler implements HttpHandler {
     public void handle(HttpExchange exchange) throws IOException {
-        String requestMethod = exchange.getRequestMethod();
-        for(Entry<String, Object> entry : exchange.getHttpContext().getAttributes().entrySet()){
-        	System.out.println(entry.getKey()+":"+entry.getValue());
-        }
-        System.out.println(exchange.getRequestURI());
-        if (requestMethod.equalsIgnoreCase("GET")) {
-            Headers responseHeaders = exchange.getResponseHeaders();
-            responseHeaders.set("Content-Type", "text/plain");
-            exchange.sendResponseHeaders(200, 0);
-            OutputStream responseBody = exchange.getResponseBody();
-            Headers requestHeaders = exchange.getRequestHeaders();
-            Set<String> keySet = requestHeaders.keySet();
-            Iterator<String> iter = keySet.iterator();
-            while (iter.hasNext()) {
-                String key = iter.next();
-                List<String> values = requestHeaders.get(key);
-                String s = key + " = " + values.toString() + "\n";
-                responseBody.write(s.getBytes());
+        try {
+            if (!exchange.getRequestMethod().equalsIgnoreCase("GET")) {
+                exchange.getResponseHeaders().set("Allow", "GET");
+                exchange.sendResponseHeaders(405, -1);
+                return;
             }
-            responseBody.flush();
-            responseBody.close();
-        }
+            exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=UTF-8");
+            exchange.sendResponseHeaders(200, 0);
+            try (OutputStream out = exchange.getResponseBody()) {
+                for (Entry<String, List<String>> entry : exchange.getRequestHeaders().entrySet()) {
+                    out.write((entry.getKey() + " = " + entry.getValue() + "\n")
+                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                }
+            }
+        } finally { exchange.close(); }
     }
 }

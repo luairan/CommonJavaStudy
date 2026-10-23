@@ -82,16 +82,16 @@ public class SQLFormater {
                 this.token = this.tokens.nextToken();
                 this.lcToken = this.token.toLowerCase(Locale.ROOT);
                 String t;
-                if ("\'".equals(this.token)) {
-                    do {
+                if ("'".equals(this.token) || "\"".equals(this.token) || "`".equals(this.token)
+                        || "[".equals(this.token)) {
+                    String closing = "[".equals(this.token) ? "]" : this.token;
+                    boolean closed = false;
+                    while (this.tokens.hasMoreTokens()) {
                         t = this.tokens.nextToken();
-                        this.token = this.token + t;
-                    } while (!"\'".equals(t) && this.tokens.hasMoreTokens());
-                } else if ("\"".equals(this.token)) {
-                    do {
-                        t = this.tokens.nextToken();
-                        this.token = this.token + t;
-                    } while (!"\"".equals(t));
+                        this.token += t;
+                        if (closing.equals(t)) { closed = true; break; }
+                    }
+                    if (!closed) throw new IllegalArgumentException("Unterminated SQL quoted token");
                 }
 
                 if (this.afterByOrSetOrFromOrSelect && ",".equals(this.token)) {
@@ -266,6 +266,7 @@ public class SQLFormater {
         private void closeParen() {
             --this.parensSinceSelect;
             if (this.parensSinceSelect < 0) {
+                if (this.parenCounts.isEmpty()) throw new IllegalArgumentException("Unmatched SQL closing parenthesis");
                 --this.indent;
                 this.parensSinceSelect = ((Integer) this.parenCounts.removeLast()).intValue();
                 this.afterByOrSetOrFromOrSelect = ((Boolean) this.afterByOrFromOrSelects.removeLast()).booleanValue();
@@ -307,6 +308,7 @@ public class SQLFormater {
         }
 
         private static boolean isFunctionName(String tok) {
+            if (tok == null || tok.isEmpty()) return false;
             char begin = tok.charAt(0);
             boolean isIdentifier = Character.isJavaIdentifierStart(begin) || 34 == begin;
             return isIdentifier && !SQLFormater.LOGICAL.contains(tok) && !SQLFormater.END_CLAUSES.contains(tok) && !SQLFormater.QUANTIFIERS.contains(tok) && !SQLFormater.DML.contains(tok) && !SQLFormater.MISC.contains(tok);

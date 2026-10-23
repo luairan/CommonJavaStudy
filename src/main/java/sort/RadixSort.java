@@ -9,29 +9,11 @@ import java.util.Random;
 
 public class RadixSort {
     public static void main(String[] args) throws Exception {
-        FileInputStream fis = null;
-        fis = new FileInputStream("/Users/luairan/Desktop/a.txt");
-        BufferedInputStream bis = new BufferedInputStream(fis);
-        InputStreamReader isr = new InputStreamReader(bis);
-        BufferedReader br = new BufferedReader(isr);
+        int[] array = SortInput.read(args);
 
-        String temp = null;
-        int[] array = new int[500000];
-        int s = 0;
-        while ((temp = br.readLine()) != null) {
-            array[s] = Integer.parseInt(temp);
-            s++;
-        }
-        br.close();
-        isr.close();
-        bis.close();
-        fis.close();
-
-
-//		int[] array = { 14, 3, 1, 12, 6, 4, 7 };
         RadixSort sss = new RadixSort();
         long time = System.nanoTime();
-        sss.radixSort(array, 6);
+        sss.radixSort(array, 10);
         long time1 = System.nanoTime();
         System.out.println(time + "    " + time1 + "\t\t" + (time1 - time));
 //		for (int te : array) {
@@ -40,20 +22,27 @@ public class RadixSort {
 //		System.out.println();
     }
 
+    /** Stable decimal LSD sort supporting the full signed int range. */
     public void radixSort(int[] array, int maxbit) {
-        int[] bitposition = new int[10];
-        int[][] a = new int[10][array.length];
-        int bit = 1;
-        for (int i = 0; i < maxbit; i++) {
-            for (int temp : array) {
-                int po = (temp / bit) % 10;
-                int position = bitposition[po];
-                a[po][position] = temp;
-                bitposition[po]++;
+        java.util.Objects.requireNonNull(array, "array");
+        if (maxbit < 1 || maxbit > 10) {
+            throw new IllegalArgumentException("maxbit must be between 1 and 10");
+        }
+        long max = 0;
+        for (int value : array) max = Math.max(max, Math.abs((long) value));
+        long capacity = 1;
+        for (int i = 0; i < maxbit; i++) capacity *= 10;
+        if (max >= capacity) throw new IllegalArgumentException("maxbit cannot represent input values");
+        int[] output = new int[array.length];
+        for (long divisor = 1; divisor <= max; divisor *= 10) {
+            int[] counts = new int[19]; // signed digits -9 through 9
+            for (int value : array) counts[(int) ((value / divisor) % 10) + 9]++;
+            for (int i = 1; i < counts.length; i++) counts[i] += counts[i - 1];
+            for (int i = array.length - 1; i >= 0; i--) {
+                int bucket = (int) ((array[i] / divisor) % 10) + 9;
+                output[--counts[bucket]] = array[i];
             }
-            bit *= 10;
-            toArray(a, bitposition, array);
-            Arrays.fill(bitposition, 0);
+            System.arraycopy(output, 0, array, 0, array.length);
         }
     }
 
