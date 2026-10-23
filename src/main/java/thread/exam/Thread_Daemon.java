@@ -11,7 +11,8 @@ public class Thread_Daemon {
 //				Thread.sleep(1000);
 //			} catch (InterruptedException e) {
 //				// TODO Auto-generated catch block
-//				e.printStackTrace();
+//                Thread.currentThread().interrupt();
+                return;
 //			}
 //			System.out.println("main");
 //		}
@@ -27,7 +28,8 @@ class DaemonThread implements Runnable{
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+                Thread.currentThread().interrupt();
+                return;
 			}
 			System.out.println(Thread.currentThread().getName()+":"+(i++));
 		}

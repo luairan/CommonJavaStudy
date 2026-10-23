@@ -1,37 +1,18 @@
 package nioSample.nio.sample.filecopy;
 
 import java.io.*;
+import java.nio.file.*;
 
-/**
- * ��StreamFileCopy.java��ʵ��������ͨ��FileInputStream����д
- * 
- * @author yblin 2010-10-17 ����01:59:05
- */
 public class StreamFileCopyWithBuffer extends CommonCopy {
-
-    public StreamFileCopyWithBuffer(String fromFile, String toFile){
-        super(fromFile, toFile);
-    }
+    public StreamFileCopyWithBuffer(String fromFile, String toFile) { super(fromFile, toFile); }
 
     @Override
-    public void run() {
-        try {
-
-            File fileIn = new File(fromFile);
-            File fileOut = new File(toFile);
-            FileInputStream fin = new FileInputStream(fileIn);
-            BufferedInputStream bin = new BufferedInputStream(fin);
-            FileOutputStream fout = new FileOutputStream(fileOut);
+    protected void copy(Path from, Path to) throws IOException {
+        try (InputStream in = new BufferedInputStream(Files.newInputStream(from));
+             OutputStream out = Files.newOutputStream(to)) {
             byte[] buffer = new byte[8192];
-            while (bin.read(buffer) != -1) {
-                fout.write(buffer);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+            int count;
+            while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
         }
-        flag = true;
-
     }
-
-
 }

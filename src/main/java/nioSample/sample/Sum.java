@@ -32,8 +32,7 @@ public class Sum {
     // Compute a 16-bit checksum for all the remaining bytes
     // in the given byte buffer
     //
-    private static int sum(ByteBuffer bb) {
-        int sum = 0;
+    private static int sum(ByteBuffer bb, int sum) {
         while (bb.hasRemaining()) {
             if ((sum & 1) != 0) sum = (sum >> 1) + 0x8000;
             else sum >>= 1;
@@ -47,22 +46,17 @@ public class Sum {
     //
     private static void sum(File f) throws IOException {
 
-        // Open the file and then get a channel from the stream
-        FileInputStream fis = new FileInputStream(f);
-        FileChannel fc = fis.getChannel();
-
-        // Get the file's size and then map it into memory
-        int sz = (int) fc.size();
-        MappedByteBuffer bb = fc.map(FileChannel.MapMode.READ_ONLY, 0, sz);
-
-        // Compute and print the checksum
-        int sum = sum(bb);
-        int kb = (sz + 1023) / 1024;
-        String s = Integer.toString(sum);
-        System.out.println(s + "\t" + kb + "\t" + f);
-
-        // Close the channel and the stream
-        fc.close();
+        try (FileInputStream input = new FileInputStream(f); FileChannel channel = input.getChannel()) {
+            long size = channel.size();
+            int checksum = 0;
+            for (long offset = 0; offset < size;) {
+                long length = Math.min(16L * 1024 * 1024, size - offset);
+                checksum = sum(channel.map(FileChannel.MapMode.READ_ONLY,offset,length),checksum);
+                offset += length;
+            }
+            long kb = size / 1024 + (size % 1024 == 0 ? 0 : 1);
+            System.out.println(checksum + "\t" + kb + "\t" + f);
+        }
     }
 
     public static void main(String[] args) {

@@ -13,16 +13,16 @@ class S implements Runnable{
 	public volatile boolean stop = false;
 	@Override
 	public void run() {
-		while(!stop){
+		while(!stop && !Thread.currentThread().isInterrupted()){
 			 System.out.println(Thread.currentThread().getName() + " is running..");
 			 try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
 				System.out.println("insss");
 				  Thread.currentThread().interrupt();
-				e.printStackTrace();
+                return;
 			}
 		}
 	}
-	
+
 }

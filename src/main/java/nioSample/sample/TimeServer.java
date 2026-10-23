@@ -63,7 +63,8 @@ public class TimeServer {
             SocketChannel sc = ssc.accept();
             try {
                 String now = new Date().toString();
-                sc.write(encoder.encode(CharBuffer.wrap(now + "\r\n")));
+                ByteBuffer response = encoder.encode(CharBuffer.wrap(now + "\r\n"));
+                while (response.hasRemaining()) sc.write(response);
                 System.out.println("server:" + sc.socket().getInetAddress() + " : " + now);
                 sc.close();
             } finally {

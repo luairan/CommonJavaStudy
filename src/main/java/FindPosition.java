@@ -1,17 +1,19 @@
 public class FindPosition {
-	public int find(int [] array ,int postion){
-		int start = 0;
-		int end = array.length-1;
-		int index = partition(array, start, end);
-		while(index != postion){
-			if(index > postion) {
-				index = partition(array, start, index-1);
-			}else{
-				index = partition(array, index+1, end);
-			}
-		}
-		return array[index];
-	}
+    /** Returns the value at the zero-based rank, modifying the input array. */
+    public int find(int[] array, int position) {
+        java.util.Objects.requireNonNull(array, "array");
+        if (position < 0 || position >= array.length) {
+            throw new IllegalArgumentException("Rank is outside the array");
+        }
+        int start = 0, end = array.length - 1;
+        while (start <= end) {
+            int index = partition(array, start, end);
+            if (index == position) return array[index];
+            if (index > position) end = index - 1;
+            else start = index + 1;
+        }
+        throw new AssertionError("Unreachable rank");
+    }
 	public int partition (int [] array ,int start ,int end){
 		int i=start+1;
 		int j=end;

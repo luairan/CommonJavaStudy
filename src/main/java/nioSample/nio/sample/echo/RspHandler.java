@@ -1,23 +1,20 @@
 package nioSample.nio.sample.echo;
 
+import java.nio.charset.StandardCharsets;
+
 public class RspHandler {
-
-    private byte[] rsp = null;
-
-    public synchronized boolean handleResponse(byte[] rsp) {
-        this.rsp = rsp;
-        this.notify();
-        return true;
+    private byte[] rsp;
+    private Throwable failure;
+    public synchronized boolean handleResponse(byte[] response) {
+        rsp = response.clone(); notifyAll(); return true;
     }
-
+    public synchronized void handleFailure(Throwable cause) { failure = cause; notifyAll(); }
     public synchronized void waitForResponse() {
-        while (this.rsp == null) {
-            try {
-                this.wait();
-            } catch (InterruptedException e) {
-            }
+        while (rsp == null && failure == null) {
+            try { wait(); }
+            catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
         }
-
-        System.out.println("response:" + new String(this.rsp));
+        if (failure != null) throw new IllegalStateException("Echo request failed",failure);
+        System.out.println("response:" + new String(rsp,StandardCharsets.UTF_8));
     }
 }

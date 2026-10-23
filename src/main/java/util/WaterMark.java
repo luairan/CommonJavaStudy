@@ -14,23 +14,17 @@ import java.io.IOException;
  */
 
 public class WaterMark {
-    private final static String pathString;
-    private final static Font font;
+    private static final Font font = loadFont();
     private static final int width = 200;
     private static final int height = 100;
 
-    static {
-        pathString = WaterMark.class.getClassLoader().getResource("msyh.ttf").getFile();
-        Font dynamicFont = null;
-        try {
-            dynamicFont = Font.createFont(Font.TRUETYPE_FONT, new File(pathString));
-
-        } catch (FontFormatException e) {
-
-        } catch (IOException e) {
-
+    private static Font loadFont() {
+        try (java.io.InputStream in = WaterMark.class.getClassLoader().getResourceAsStream("msyh.ttf")) {
+            if (in != null) return Font.createFont(Font.TRUETYPE_FONT, in).deriveFont(Font.PLAIN, 13);
+        } catch (IOException | FontFormatException e) {
+            // Fall back to a logical font when the optional bundled font is unavailable.
         }
-        font = dynamicFont.deriveFont(Font.PLAIN, 13);
+        return new Font(Font.SANS_SERIF, Font.PLAIN, 13);
     }
 
     public static byte[] doWaterMark(String str) throws IOException {
@@ -39,7 +33,8 @@ public class WaterMark {
 
         Graphics2D g2 = bi.createGraphics();
 
-        g2.rotate(Math.atan(width / height) + Math.PI * 3 / 2, width / 2, height / 2);
+        try {
+        g2.rotate(Math.atan((double) width / height) + Math.PI * 3 / 2, width / 2, height / 2);
         g2.setPaint(new Color(234, 234, 234));
         if (font != null)
             g2.setFont(font);
@@ -53,7 +48,9 @@ public class WaterMark {
 
         g2.drawString(str, (int) x, (int) baseY);
 
-        g2.dispose();
+        } finally {
+            g2.dispose();
+        }
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 

@@ -1,86 +1,61 @@
 package luairan.timeserver.nio;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.io.*;
+import java.net.*;
+import java.nio.channels.*;
+import java.nio.charset.StandardCharsets;
+import java.util.Set;
+import java.util.concurrent.*;
 
-/**
- * nio �������
- * 
- * @author airan.lar
- *
- */
-public class BlockServer {
-	ServerSocketChannel serverSocketChannel;
-	ExecutorService executorService;
-
-	public BlockServer() throws IOException {
-		executorService = Executors.newFixedThreadPool(Runtime.getRuntime()
-				.availableProcessors());
-		serverSocketChannel = ServerSocketChannel.open();
-		serverSocketChannel.socket().setReuseAddress(true);
-		serverSocketChannel.socket().bind(new InetSocketAddress(9000));
-		System.out.println("Server open");
-	}
-
-	public void service() throws IOException {
-		while (true) {
-			SocketChannel socketChannel = serverSocketChannel.accept();
-			executorService.execute(new Handler(socketChannel));
-		}
-	}
-
-	public static void main(String[] args) throws IOException {
-		new BlockServer().service();
-	}
-
+public class BlockServer implements AutoCloseable {
+    private final ServerSocketChannel listener;
+    private final ExecutorService executor;
+    private final Set<SocketChannel> clients = ConcurrentHashMap.newKeySet();
+    public BlockServer() throws IOException { this(9000); }
+    public BlockServer(int port) throws IOException {
+        int size = Math.max(2,Runtime.getRuntime().availableProcessors());
+        executor = new ThreadPoolExecutor(size,size,0,TimeUnit.SECONDS,new ArrayBlockingQueue<>(100));
+        listener = ServerSocketChannel.open();
+        try { listener.bind(new InetSocketAddress("localhost",port)); }
+        catch (IOException | RuntimeException e) { close(); throw e; }
+    }
+    public void service() throws IOException {
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                SocketChannel client = listener.accept();
+                clients.add(client);
+                try {
+                    executor.execute(() -> {
+                        try { new Handler(client).run(); }
+                        finally { clients.remove(client); }
+                    });
+                } catch (RejectedExecutionException e) { clients.remove(client); client.close(); }
+            }
+        } finally { close(); }
+    }
+    public void close() throws IOException {
+        try { listener.close(); }
+        finally {
+            try { for (SocketChannel client : clients) client.close(); }
+            finally { executor.shutdownNow(); }
+        }
+    }
+    public static void main(String[] args) throws IOException {
+        new BlockServer(args.length == 0 ? 9000 : Integer.parseInt(args[0])).service();
+    }
 }
-
 class Handler implements Runnable {
-	private SocketChannel socketChannels;
-
-	Handler(SocketChannel socketChannel) {
-		this.socketChannels = socketChannel;
-	}
-
-	@Override
-	public void run() {
-		handle(socketChannels);
-	}
-
-	private void handle(SocketChannel socketChannel) {
-		try {
-			Socket socket = socketChannel.socket();
-			BufferedReader br = new BufferedReader(new InputStreamReader(
-					socket.getInputStream()));
-
-			PrintWriter pw = new PrintWriter(socket.getOutputStream());
-			String msg = null;
-			while ((msg = br.readLine()) != null) {
-				System.out.println(msg);
-				pw.println(msg);
-				pw.flush();
-				if (msg.equals("quit")) {
-					break;
-				}
-			}
-		} catch (Exception e) {
-
-		} finally {
-			try {
-				if (socketChannel != null)
-					socketChannel.close();
-			} catch (Exception e2) {
-
-			}
-		}
-
-	}
+    private final SocketChannel channel;
+    Handler(SocketChannel channel) { this.channel = channel; }
+    public void run() {
+        try (SocketChannel client = channel;
+             BufferedReader in = new BufferedReader(new InputStreamReader(client.socket().getInputStream(),StandardCharsets.UTF_8));
+             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(client.socket().getOutputStream(),StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = in.readLine()) != null) {
+                out.write(line + "\n"); out.flush();
+                if (line.equals("quit")) break;
+            }
+        } catch (IOException e) { System.err.println("Client disconnected: " + e.getMessage()); }
+    }
 }

@@ -1,30 +1,17 @@
 package sort;
 
 import java.io.*;
+import java.nio.file.*;
 import java.util.Random;
 
-
-/**
- * 这个是测试的例子
- */
 public class UseCaseTest {
-	public static void main(String[] args) throws Exception{
-			FileOutputStream fos =new FileOutputStream(new File("/Users/luairan/Desktop/a.txt"));
-			BufferedOutputStream bos =new BufferedOutputStream(fos);
-			OutputStreamWriter osw=new OutputStreamWriter(bos);
-			BufferedWriter bw=new BufferedWriter(osw);
-			int i=500000;
-
-		Random rand = new Random();
-		while(i>0){
-			bw.write(rand.nextInt(500000)+"");
-			bw.newLine();
-			i--;
-		}
-		bw.flush();
-		bw.close();
-		osw.close();
-		bos.close();
-		fos.close();
-	}
+    public static void main(String[] args) throws IOException {
+        if (args.length < 1 || args.length > 2) throw new IllegalArgumentException("Usage: UseCaseTest output-file [count]");
+        int count = args.length == 2 ? Integer.parseInt(args[1]) : 500000;
+        if (count < 0) throw new IllegalArgumentException("count must be nonnegative");
+        Random random = new Random();
+        try (BufferedWriter out = Files.newBufferedWriter(Paths.get(args[0]))) {
+            for (int i = 0; i < count; i++) { out.write(Integer.toString(random.nextInt(500000))); out.newLine(); }
+        }
+    }
 }

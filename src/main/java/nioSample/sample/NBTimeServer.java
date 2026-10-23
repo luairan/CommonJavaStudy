@@ -19,6 +19,7 @@ package nioSample.sample;
  * licensed or intended for use in the design, construction, operation or maintenance of any nuclear facility.
  */
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -48,50 +49,33 @@ public class NBTimeServer {
 
     // Accept connections for current time. Lazy Exception thrown.
     private static void acceptConnections(int port) throws Exception {
-        // Selector for incoming time requests
-        Selector acceptSelector = SelectorProvider.provider().openSelector();
-
-        // Create a new server socket and set to non blocking mode
-        ServerSocketChannel ssc = ServerSocketChannel.open();
-        ssc.configureBlocking(false);
-
-        // Bind the server socket to the local host and port
-
-        InetAddress lh = InetAddress.getLocalHost();
-        InetSocketAddress isa = new InetSocketAddress(lh, port);
-        ssc.socket().bind(isa);
-
-        // Register accepts on the server socket with the selector. This
-        // step tells the selector that the socket wants to be put on the
-        // ready list when accept operations occur, so allowing multiplexed
-        // non-blocking I/O to take place.
-        SelectionKey acceptKey = ssc.register(acceptSelector, SelectionKey.OP_ACCEPT);
-
-        int keysAdded = 0;
-
-        // Here's where everything happens. The select method will
-        // return when any operations registered above have occurred, the
-        // thread has been interrupted, etc.
-        while ((keysAdded = acceptSelector.select()) > 0) {
-            // Someone is ready for I/O, get the ready keys
-            Set readyKeys = acceptSelector.selectedKeys();
-            Iterator i = readyKeys.iterator();
-
-            // Walk through the ready keys collection and process date requests.
-            while (i.hasNext()) {
-                SelectionKey sk = (SelectionKey) i.next();
-                i.remove();
-                // The key indexes into the selector so you
-                // can retrieve the socket that's ready for I/O
-                ServerSocketChannel nextReady = (ServerSocketChannel) sk.channel();
-                // Accept the date request and send back the date string
-                Socket s = nextReady.accept().socket();
-                // Write the current time to the socket
-                PrintWriter out = new PrintWriter(s.getOutputStream(), true);
-                Date now = new Date();
-                out.println(now);
-                out.close();
-            }
+        try (Selector selector = Selector.open(); ServerSocketChannel listener = ServerSocketChannel.open()) {
+            listener.configureBlocking(false);
+            listener.bind(new InetSocketAddress("localhost",port));
+            listener.register(selector,SelectionKey.OP_ACCEPT);
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    selector.select();
+                    Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+                    while (keys.hasNext()) {
+                        SelectionKey key = keys.next(); keys.remove();
+                        if (!key.isValid()) continue;
+                        try {
+                            if (key.isAcceptable()) {
+                                java.nio.channels.SocketChannel client = listener.accept();
+                                if (client == null) continue;
+                                client.configureBlocking(false);
+                                client.register(selector,SelectionKey.OP_WRITE,
+                                        java.nio.charset.StandardCharsets.US_ASCII.encode(new Date() + "\r\n"));
+                            } else if (key.isWritable()) {
+                                java.nio.ByteBuffer response = (java.nio.ByteBuffer) key.attachment();
+                                ((java.nio.channels.SocketChannel) key.channel()).write(response);
+                                if (!response.hasRemaining()) { key.cancel(); key.channel().close(); }
+                            }
+                        } catch (IOException e) { key.cancel(); key.channel().close(); }
+                    }
+                }
+            } finally { for (SelectionKey key : selector.keys()) key.channel().close(); }
         }
     }
 
@@ -100,7 +84,7 @@ public class NBTimeServer {
         // Parse command line arguments and
         // create a new time server (no arguments yet)
         try {
-            NBTimeServer nbt = new NBTimeServer();
+            NBTimeServer nbt = new NBTimeServer(args.length == 0 ? DEFAULT_TIME_PORT : Integer.parseInt(args[0]));
         } catch (Exception e) {
             e.printStackTrace();
         }

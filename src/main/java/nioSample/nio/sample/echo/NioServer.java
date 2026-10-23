@@ -42,6 +42,9 @@ public class NioServer implements Runnable {
         this.worker = worker;
     }
 
+    private final Map<SocketChannel,Integer> inFlight = new HashMap<>();
+    private final Set<SocketChannel> inputClosed = new HashSet<>();
+
     public void send(SocketChannel socket, byte[] data) {
         synchronized (this.pendingChanges) {
             // Indicate we want the interest ops set changed
@@ -49,6 +52,8 @@ public class NioServer implements Runnable {
 
             // And queue the data we want written
             synchronized (this.pendingData) {
+                if (!socket.isOpen()) return;
+                inFlight.computeIfPresent(socket,(channel,count) -> count - 1);
                 List queue = (List) this.pendingData.get(socket);
                 if (queue == null) {
                     queue = new ArrayList();
@@ -63,7 +68,8 @@ public class NioServer implements Runnable {
     }
 
     public void run() {
-        while (true) {
+        try {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 // Process any pending changes
                 synchronized (this.pendingChanges) {
@@ -73,7 +79,7 @@ public class NioServer implements Runnable {
                         switch (change.type) {
                             case ChangeRequest.CHANGEOPS:
                                 SelectionKey key = change.socket.keyFor(this.selector);
-                                key.interestOps(change.ops);
+                                if (key != null && key.isValid()) key.interestOps(change.ops);
                         }
                     }
                     this.pendingChanges.clear();
@@ -93,6 +99,7 @@ public class NioServer implements Runnable {
                     }
 
                     // Check what event is available and deal with it
+                    try {
                     if (key.isAcceptable()) {
                         this.accept(key);
                     } else if (key.isReadable()) {
@@ -100,11 +107,31 @@ public class NioServer implements Runnable {
                     } else if (key.isWritable()) {
                         this.write(key);
                     }
+                    } catch (IOException e) {
+                        if (key.channel() instanceof SocketChannel) close((SocketChannel) key.channel());
+                        else throw e;
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+        } finally {
+            try {
+                for (SelectionKey key : selector.keys()) {
+                    if (key.channel() instanceof SocketChannel) close((SocketChannel) key.channel());
+                    else key.channel().close();
+                }
+                selector.close();
+            } catch (IOException e) { throw new java.io.UncheckedIOException(e); }
+        }
+    }
+
+    private void close(SocketChannel socket) throws IOException {
+        SelectionKey key = socket.keyFor(selector);
+        if (key != null) key.cancel();
+        socket.close();
+        synchronized (pendingData) { pendingData.remove(socket); inFlight.remove(socket); inputClosed.remove(socket); }
     }
 
     private void accept(SelectionKey key) throws IOException {
@@ -113,6 +140,7 @@ public class NioServer implements Runnable {
 
         // Accept the connection and make it non-blocking
         SocketChannel socketChannel = serverSocketChannel.accept();
+        if (socketChannel == null) return;
         Socket socket = socketChannel.socket();
         socketChannel.configureBlocking(false);
 
@@ -134,20 +162,26 @@ public class NioServer implements Runnable {
         } catch (IOException e) {
             // The remote forcibly closed the connection, cancel
             // the selection key and close the channel.
-            key.cancel();
-            socketChannel.close();
+            close(socketChannel);
             return;
         }
 
         if (numRead == -1) {
             // Remote entity shut the socket down cleanly. Do the
             // same from our end and cancel the channel.
-            key.channel().close();
-            key.cancel();
+            synchronized (pendingData) {
+                inputClosed.add(socketChannel);
+                List queued = (List) pendingData.get(socketChannel);
+                if (inFlight.getOrDefault(socketChannel,0) == 0 && (queued == null || queued.isEmpty())) close(socketChannel);
+                else key.interestOps(queued == null || queued.isEmpty() ? 0 : SelectionKey.OP_WRITE);
+            }
             return;
         }
 
+        if (numRead == 0) return;
+
         // Hand the data off to our worker thread
+        synchronized (pendingData) { inFlight.merge(socketChannel,1,Integer::sum); }
         this.worker.processData(this, socketChannel, this.readBuffer.array(), numRead);
     }
 
@@ -156,6 +190,8 @@ public class NioServer implements Runnable {
 
         synchronized (this.pendingData) {
             List queue = (List) this.pendingData.get(socketChannel);
+
+            if (queue == null) { key.interestOps(SelectionKey.OP_READ); return; }
 
             // Write until there's not more data ...
             while (!queue.isEmpty()) {
@@ -172,7 +208,11 @@ public class NioServer implements Runnable {
                 // We wrote away all data, so we're no longer interested
                 // in writing on this socket. Switch back to waiting for
                 // data.
-                key.interestOps(SelectionKey.OP_READ);
+                this.pendingData.remove(socketChannel);
+                if (inputClosed.contains(socketChannel)) {
+                    if (inFlight.getOrDefault(socketChannel,0) == 0) close(socketChannel);
+                    else key.interestOps(0);
+                } else key.interestOps(SelectionKey.OP_READ);
             }
         }
     }
@@ -199,8 +239,9 @@ public class NioServer implements Runnable {
     public static void main(String[] args) {
         try {
             EchoWorker worker = new EchoWorker();
-            new Thread(worker).start();
-            new Thread(new NioServer(null, 9090, worker)).start();
+            NioServer server = new NioServer(null,args.length == 0 ? 9090 : Integer.parseInt(args[0]),worker);
+            Thread thread = new Thread(worker); thread.start();
+            try { server.run(); } finally { thread.interrupt(); }
         } catch (IOException e) {
             e.printStackTrace();
         }

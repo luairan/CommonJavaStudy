@@ -21,39 +21,31 @@ public class Base64 {
 		map.put('/', 63);
 	}
 
-	public List<Character> encode(char[] code) {
-		ArrayList<Character> liost=new ArrayList<Character>();
-		for(int i=0;i<code.length;i+=4){
-			byte one = make(code[i]);
-			byte two = make(code[i+1]);
-			byte three = make(code[i+2]);
-			byte four = make(code[i+3]);
-			
-			byte fone=(byte) ((one<<2)|((two&0x30)>>4));
-			byte ftwo=(byte) ((two<<4)|((three&0x3C)>>2));
-			byte fthree=(byte) ((three<<6)|four);
-			
-			liost.add((char)(fone));
-			liost.add((char)(ftwo));
-			liost.add((char)(fthree));
-		}
-		return liost;
-	}
-	public byte make(char num){
-		if(num=='=') return 0x00;
-		return map.get(num).byteValue();
-	}
-	public int getpnum(char[] code, char temp) {
-		int flag = 0;
-		for (int i = code.length - 1; i > 0; i--) {
-			if (code[i] == temp) {
-				flag++;
-			} else {
-				break;
-			}
-		}
-		return flag;
-	}
+    /** Historical name: this method DECODES Base64 to unsigned byte-valued chars. */
+    public List<Character> encode(char[] code) {
+        byte[] bytes = decode(code);
+        List<Character> result = new ArrayList<>();
+        for (byte value : bytes) result.add((char) (value & 0xff));
+        return result;
+    }
+
+    public byte[] decode(char[] code) {
+        // The JDK decoder validates the alphabet, padding and final quantum.
+        return java.util.Base64.getDecoder().decode(new String(code));
+    }
+
+    public byte make(char num) {
+        if (num == '=') return 0;
+        Integer value = map.get(num);
+        if (value == null) throw new IllegalArgumentException("Invalid Base64 character: " + num);
+        return value.byteValue();
+    }
+
+    public int getpnum(char[] code, char temp) {
+        int count = 0;
+        for (int i = code.length - 1; i >= 0 && code[i] == temp; i--) count++;
+        return count;
+    }
 
 	public static void main(String[] args) {
 		String aa = "VGhlIHRlcm0gQmFzZTY0IHJlZmVycyB0byBhIHNwZWNpZmljIE1JTUUgY29udGVudCB0cmFuc2Zl"
@@ -87,6 +79,6 @@ public class Base64 {
 		for(char sss:list){
 			System.out.print(sss);
 		}
-		
+
 	}
 }

@@ -1,24 +1,20 @@
 package nio.file;
 
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
+import java.io.*;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 
 public class FileRead {
-	public static void main(String[] args) throws Exception {
-		RandomAccessFile aFile = new RandomAccessFile("D://a.txt", "rw");
-		FileChannel inChannel = aFile.getChannel();
-		ByteBuffer buf = ByteBuffer.allocate(48);
-		int bytesRead = inChannel.read(buf);
-		while (bytesRead != -1) {
-			System.out.println("Read " + bytesRead);
-			buf.flip();
-			while (buf.hasRemaining()) {
-				System.out.print((char) buf.get());
-			}
-			buf.clear();
-			bytesRead = inChannel.read(buf);
-		}
-		aFile.close();
-	}
+    public static void main(String[] args) throws IOException {
+        if (args.length != 1) throw new IllegalArgumentException("Usage: FileRead input-file");
+        // A streaming reader keeps partial UTF-8 characters between channel reads.
+        try (FileChannel channel = FileChannel.open(Paths.get(args[0]));
+             Reader reader = new InputStreamReader(Channels.newInputStream(channel),StandardCharsets.UTF_8)) {
+            char[] buffer = new char[48];
+            int count;
+            while ((count = reader.read(buffer)) != -1) System.out.print(new String(buffer,0,count));
+        }
+    }
 }
