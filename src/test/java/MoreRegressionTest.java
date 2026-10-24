@@ -324,7 +324,7 @@ public class MoreRegressionTest {
             try (ServerSocket reservation = new ServerSocket(0)) { port = reservation.getLocalPort(); }
             log = Files.createTempFile("server-regression-",".log");
             process = new ProcessBuilder(Paths.get(System.getProperty("java.home"),"bin","java").toString(),
-                    "-cp",System.getProperty("java.class.path"),type,Integer.toString(port))
+                    "-cp",System.getProperty("surefire.test.class.path",System.getProperty("java.class.path")),type,Integer.toString(port))
                     .redirectErrorStream(true).redirectOutput(log.toFile()).start();
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
             while (System.nanoTime() < deadline) {
@@ -383,13 +383,13 @@ public class MoreRegressionTest {
             check(new BufferedReader(new InputStreamReader(socket.getInputStream(),StandardCharsets.US_ASCII)).readLine() != null,"nonblocking daytime");
         }
         Process ping = new ProcessBuilder(Paths.get(System.getProperty("java.home"),"bin","java").toString(),
-                "-cp",System.getProperty("java.class.path"),"nioSample.sample.Ping","invalid..host")
+                "-cp",System.getProperty("surefire.test.class.path",System.getProperty("java.class.path")),"nioSample.sample.Ping","invalid..host")
                 .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
         try { check(ping.waitFor(8,TimeUnit.SECONDS) && ping.exitValue() == 0,"DNS failure must terminate ping"); }
         finally { ping.destroyForcibly(); }
         for (String type : new String[]{"thread.callablefuture.Call","thread.callablefuture.FutureTask","thread.exam.Thread_interrput"}) {
             Process process = new ProcessBuilder(Paths.get(System.getProperty("java.home"),"bin","java").toString(),
-                    "-cp",System.getProperty("java.class.path"),type).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+                    "-cp",System.getProperty("surefire.test.class.path",System.getProperty("java.class.path")),type).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
             try { check(process.waitFor(5,TimeUnit.SECONDS) && process.exitValue() == 0,"example termination " + type); }
             finally { process.destroyForcibly(); }
         }

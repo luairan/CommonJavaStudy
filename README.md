@@ -27,15 +27,36 @@
 需要 JDK 17+、Maven 3.9+。首次构建会下载 `pom.xml` 固定版本的依赖。
 
 ```sh
-mvn test-compile
-sh tests/run-all.sh
+mvn test
 ```
 
-`mvn test-compile` 编译全部主代码和原有测试示例；实际的断言回归测试由
-`tests/run-all.sh` 执行，不要把仅编译成功当作回归测试通过。
-`JAVA_HOME` 可指定 JDK，`MVN` 可指定 Maven 可执行文件。
+`mvn test` 会编译项目并通过 JUnit/Surefire 执行两组现有回归测试，任何断言失败都会使
+命令以非零状态退出。两组测试对应多个实际回归场景，并非只有两个断言。
+测试报告位于 `target/surefire-reports/`，测试源码统一位于 `src/test/java/`。
+需要打包时运行 `mvn verify`，同样会先执行测试。
+
+原来的 `sh tests/run-all.sh` 保留为 `mvn test` 的兼容入口；可通过 `MVN` 指定
+Maven 可执行文件，额外参数也会传给 Maven，例如：
+
+```sh
+sh tests/run-all.sh -Dtest=RegressionSuiteTest#coreRegressions
+```
+
+`JAVA_HOME` 可指定 JDK。只编译而不执行测试可运行 `mvn test-compile`。
 测试使用临时文件、本地随机端口和临时 TLS 证书，清理后退出，不请求外部网站。
 仅验证第一轮涉及的 JDK 示例时，也可运行无需 Maven 的 `sh tests/run.sh`。
+
+### 持续集成
+
+`.github/workflows/java-tests.yml` 会在 `master` 收到提交、面向 `master` 的 PR 创建或
+更新，以及手动触发时运行。Ubuntu 与 macOS 都使用 Temurin JDK 17，执行同一条
+`mvn --batch-mode --no-transfer-progress test`。Maven 依赖按 `pom.xml` 缓存。
+
+每个任务最多运行 15 分钟，同一 PR 的新提交会取消过时的运行；测试不并行执行，
+避免两组测试修改全局 TLS 状态或控制台输出时互相干扰。
+成功或失败都会尝试上传 Surefire 报告，保留 7 天。Action 固定到完整提交 SHA，
+工作流 token 仅授予仓库内容读取权限。
+
 
 依赖包括 Apache POI、Velocity、Gson 和 Netty；Netty handler 已适配
 `ChannelInboundHandlerAdapter`，Excel 工具已适配 POI 的枚举单元格类型。
