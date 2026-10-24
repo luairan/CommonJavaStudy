@@ -2,6 +2,7 @@ package nioSample.nio.sample.filecopy;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -13,8 +14,8 @@ public abstract class CommonCopy implements Runnable {
     private volatile IOException failure;
 
     public CommonCopy(String fromFile, String toFile) {
-        this.fromFile = fromFile;
-        this.toFile = toFile;
+        this.fromFile = java.util.Objects.requireNonNull(fromFile, "fromFile");
+        this.toFile = java.util.Objects.requireNonNull(toFile, "toFile");
     }
 
     public IOException getFailure() { return failure; }
@@ -30,6 +31,8 @@ public abstract class CommonCopy implements Runnable {
                 throw new IOException("Source and destination are the same file");
             }
             copy(from, to);
+        } catch (InvalidPathException e) {
+            failure = new IOException("Invalid source or destination path", e);
         } catch (IOException e) {
             failure = e;
         } finally {
