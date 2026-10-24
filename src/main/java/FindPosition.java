@@ -7,13 +7,25 @@ public class FindPosition {
         }
         int start = 0, end = array.length - 1;
         while (start <= end) {
-            int index = partition(array, start, end);
-            if (index == position) return array[index];
-            if (index > position) end = index - 1;
-            else start = index + 1;
+            int pivot = array[java.util.concurrent.ThreadLocalRandom.current().nextInt(start, end + 1)];
+            int less = start, scan = start, greater = end;
+            while (scan <= greater) {
+                if (array[scan] < pivot) swap(array, less++, scan++);
+                else if (array[scan] > pivot) swap(array, scan, greater--);
+                else scan++;
+            }
+            if (position < less) end = less - 1;
+            else if (position > greater) start = greater + 1;
+            else return pivot;
         }
         throw new AssertionError("Unreachable rank");
     }
+    private static void swap(int[] array, int first, int second) {
+        int value = array[first];
+        array[first] = array[second];
+        array[second] = value;
+    }
+
 	public int partition (int [] array ,int start ,int end){
 		int i=start+1;
 		int j=end;
