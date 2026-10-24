@@ -90,6 +90,7 @@ public class AsyncEchoHandler implements CompletionHandler<AsynchronousSocketCha
         ExecutorService executor = Executors.newSingleThreadExecutor();
         AsynchronousChannelGroup group = AsynchronousChannelGroup.withThreadPool(executor);
         try (AsynchronousServerSocketChannel server = AsynchronousServerSocketChannel.open(group)) {
+            server.setOption(java.net.StandardSocketOptions.SO_REUSEADDR,true);
             server.bind(new InetSocketAddress("localhost", port));
             server.accept(server, new AsyncEchoHandler(lines));
             System.out.println("Listening on " + server.getLocalAddress());

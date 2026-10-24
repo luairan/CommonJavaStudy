@@ -11,19 +11,21 @@ import java.util.Iterator;
 public class UnBlockSingleServer implements AutoCloseable {
     private final ServerSocketChannel serverSocketChannel;
     private final Selector selector;
+    private volatile boolean closed;
     public UnBlockSingleServer() throws IOException { this(9000); }
     public UnBlockSingleServer(int port) throws IOException {
         selector = Selector.open();
         serverSocketChannel = ServerSocketChannel.open();
         try {
             serverSocketChannel.configureBlocking(false);
+            serverSocketChannel.setOption(java.net.StandardSocketOptions.SO_REUSEADDR,true);
             serverSocketChannel.bind(new InetSocketAddress("localhost",port));
             serverSocketChannel.register(selector,SelectionKey.OP_ACCEPT);
         } catch (IOException | RuntimeException e) { close(); throw e; }
     }
     public void service() throws IOException {
         try {
-            while (!Thread.currentThread().isInterrupted()) {
+            while (!closed && !Thread.currentThread().isInterrupted()) {
                 selector.select();
                 Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
                 while (keys.hasNext()) {
@@ -35,10 +37,17 @@ public class UnBlockSingleServer implements AutoCloseable {
                             if (key.isReadable()) read(key,selector);
                             if (key.isValid() && key.isWritable()) write(key,selector);
                         }
-                    } catch (IOException e) { key.cancel(); key.channel().close(); }
+                    } catch (IOException | CancelledKeyException e) { key.cancel(); key.channel().close(); }
                 }
             }
+        } catch (ClosedSelectorException e) {
+            if (!closed) throw e;
+        } catch (IOException e) {
+            if (!closed) throw e;
         } finally { close(); }
+    }
+    public int getPort() throws IOException {
+        return ((InetSocketAddress) serverSocketChannel.getLocalAddress()).getPort();
     }
     public void read(SelectionKey key, Selector selector) throws IOException {
         luairan.textserver.nio.Server.read(key,selector);
@@ -46,13 +55,16 @@ public class UnBlockSingleServer implements AutoCloseable {
     public void write(SelectionKey key, Selector selector) throws IOException {
         luairan.textserver.nio.Server.write(key,selector);
     }
-    public void accept(SelectionKey key, Selector selector) throws IOException {
+    public synchronized void accept(SelectionKey key, Selector selector) throws IOException {
+        if (closed) return;
         luairan.textserver.nio.Server.accept(key,selector);
     }
     public String decode(ByteBuffer buffer) {
         return StandardCharsets.UTF_8.decode(buffer.asReadOnlyBuffer()).toString();
     }
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
+        closed = true;
+        selector.wakeup();
         if (selector.isOpen()) {
             for (SelectionKey key : selector.keys()) key.channel().close();
             selector.close();

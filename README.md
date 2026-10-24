@@ -30,8 +30,8 @@
 mvn test
 ```
 
-`mvn test` 会编译项目并通过 JUnit/Surefire 执行两组现有回归测试，任何断言失败都会使
-命令以非零状态退出。两组测试对应多个实际回归场景，并非只有两个断言。
+`mvn test` 会编译项目并通过 JUnit/Surefire 执行两组基础回归及独立网络测试，任何断言失败都会使
+命令以非零状态退出。基础回归组包含多个实际场景，网络超时和退出场景独立报告测试结果。
 测试报告位于 `target/surefire-reports/`，测试源码统一位于 `src/test/java/`。
 需要打包时运行 `mvn verify`，同样会先执行测试。
 
@@ -108,7 +108,36 @@ worker 队列积压上限为 1024，超限拒绝该连接的新事件。
 `BlockServer` 保留原有逐行原样回显行为，`quit` 本身也被回显后再关闭。
 
 HTTPS 工具使用 JDK 默认信任库。自签名服务需显式配置受信任证书；
-请求连接与读取超时为 10 秒，表单参数默认使用 UTF-8，不重置全局 CookieManager。
+请求连接与读取超时默认均为 10 秒，表单参数默认使用 UTF-8，不重置全局 CookieManager。
+两处 HttpsUtils 的六参数原始请求重载可分别配置连接/读取超时（单位毫秒，必须为正数）。
+读取超时约束单次等待，不表示整个 HTTP 请求的总时限。
+
+### 网络截止时间与服务退出
+
+NIO echo 客户端默认使用 10 秒的请求总截止时间，也可通过
+`new NioClient(address, port, requestTimeoutMillis)` 设置正数毫秒。
+截止时间覆盖请求排队、连接、发送和完整响应接收；收到少量字节不会延长它。
+到期后以 `SocketTimeoutException` 通知响应处理器、关闭该连接，reactor 仍可处理后续请求。
+`close()` 会唤醒事件循环、取消尚未完成的请求，并拒绝后续提交；也支持启动 reactor 前关闭。
+
+`io.nio.UnBlockSingleServer`（及旧包入口）、`LineProcessorServer`、`BlockServer`
+和 NIO echo `NioServer` 均支持运行中关闭、重复/并发关闭和中断退出。
+退出时停止监听并关闭现有连接；这是取消式停止，不保证发送完尚未完成的响应。
+调用者仍应等待服务线程结束；`BlockServer.awaitTermination` 可等待其工作池退出。
+NIO echo 服务的外部 EchoWorker 由创建它的调用者负责中断并等待退出。
+AIO 的 `AsyncEchoHandler.serve` 可通过中断服务线程停止，并关闭连接和完成线程组。
+
+新增测试使用真实的本地 TCP 服务控制以下行为：
+
+- 接受连接后不回复，或持续缓慢发送少量字节，验证 echo 总截止时间及超时后的后续请求。
+- HTTP 响应头不返回、正文只返回一部分，验证两份 HTTP 工具的读取超时。
+- 客户端关闭时有挂起请求、启动前有排队请求、排队期间已过期，验证取消与唤醒。
+- 五类服务在活动/空闲连接存在时关闭、中断或并发关闭，验证线程结束、客户端断开和原端口重启。
+- 关闭后才启动、RST 异常断连后的继续服务，以及 AIO 两种协议的完成线程清理。
+
+可单独运行 `mvn -Dtest=NetworkLifecycleTest,AsyncShutdownTest test`。
+测试通过短的可配置时限、锁存器和 Future 限制等待，不依赖外部 IP 制造超时；
+未模拟真实网络的 SYN 丢包、DNS 超时或公网故障。
 
 ### 回归覆盖与边界
 

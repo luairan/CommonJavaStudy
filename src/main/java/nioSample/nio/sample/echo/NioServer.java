@@ -12,7 +12,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.*;
 
-public class NioServer implements Runnable {
+public class NioServer implements Runnable, AutoCloseable {
 
     // The host:port combination to listen on
     private InetAddress         hostAddress;
@@ -42,11 +42,14 @@ public class NioServer implements Runnable {
         this.worker = worker;
     }
 
+    private volatile boolean stopped;
+
     private final Map<SocketChannel,Integer> inFlight = new HashMap<>();
     private final Set<SocketChannel> inputClosed = new HashSet<>();
 
     public void send(SocketChannel socket, byte[] data) {
         synchronized (this.pendingChanges) {
+            if (stopped || !socket.isOpen()) return;
             // Indicate we want the interest ops set changed
             this.pendingChanges.add(new ChangeRequest(socket, ChangeRequest.CHANGEOPS, SelectionKey.OP_WRITE));
 
@@ -69,7 +72,7 @@ public class NioServer implements Runnable {
 
     public void run() {
         try {
-        while (!Thread.currentThread().isInterrupted()) {
+        while (!stopped && !Thread.currentThread().isInterrupted()) {
             try {
                 // Process any pending changes
                 synchronized (this.pendingChanges) {
@@ -87,6 +90,8 @@ public class NioServer implements Runnable {
 
                 // Wait for an event one of the registered channels
                 this.selector.select();
+                synchronized (pendingChanges) {
+                if (stopped) break;
 
                 // Iterate over the set of keys for which events are available
                 Iterator selectedKeys = this.selector.selectedKeys().iterator();
@@ -112,18 +117,37 @@ public class NioServer implements Runnable {
                         else throw e;
                     }
                 }
+                }
             } catch (Exception e) {
-                e.printStackTrace();
+                if (!stopped) e.printStackTrace();
             }
         }
         } finally {
-            try {
-                for (SelectionKey key : selector.keys()) {
-                    if (key.channel() instanceof SocketChannel) close((SocketChannel) key.channel());
-                    else key.channel().close();
-                }
-                selector.close();
-            } catch (IOException e) { throw new java.io.UncheckedIOException(e); }
+            try { close(); }
+            catch (IOException e) { throw new java.io.UncheckedIOException(e); }
+        }
+    }
+
+    public int getPort() throws IOException {
+        return ((InetSocketAddress) serverChannel.getLocalAddress()).getPort();
+    }
+
+    @Override
+    public void close() throws IOException {
+        synchronized (pendingChanges) {
+            stopped = true;
+            selector.wakeup();
+            if (selector.isOpen()) {
+                try {
+                    for (SelectionKey key : selector.keys()) {
+                        if (key.channel() instanceof SocketChannel) close((SocketChannel) key.channel());
+                        else key.channel().close();
+                    }
+                } finally { selector.close(); }
+            }
+            serverChannel.close();
+            pendingChanges.clear();
+            synchronized (pendingData) { pendingData.clear(); inFlight.clear(); inputClosed.clear(); }
         }
     }
 
@@ -218,22 +242,19 @@ public class NioServer implements Runnable {
     }
 
     private Selector initSelector() throws IOException {
-        // Create a new selector
         Selector socketSelector = SelectorProvider.provider().openSelector();
-
-        // Create a new non-blocking server socket channel
-        this.serverChannel = ServerSocketChannel.open();
-        serverChannel.configureBlocking(false);
-
-        // Bind the server socket to the specified address and port
-        InetSocketAddress isa = new InetSocketAddress(this.hostAddress, this.port);
-        serverChannel.socket().bind(isa);
-
-        // Register the server socket channel, indicating an interest in
-        // accepting new connections
-        serverChannel.register(socketSelector, SelectionKey.OP_ACCEPT);
-
-        return socketSelector;
+        try {
+            serverChannel = ServerSocketChannel.open();
+            serverChannel.configureBlocking(false);
+            serverChannel.setOption(java.net.StandardSocketOptions.SO_REUSEADDR,true);
+            serverChannel.bind(new InetSocketAddress(hostAddress,port));
+            serverChannel.register(socketSelector,SelectionKey.OP_ACCEPT);
+            return socketSelector;
+        } catch (IOException | RuntimeException e) {
+            if (serverChannel != null) serverChannel.close();
+            socketSelector.close();
+            throw e;
+        }
     }
 
     public static void main(String[] args) {

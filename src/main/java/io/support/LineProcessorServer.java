@@ -25,6 +25,7 @@ public class LineProcessorServer implements Runnable, AutoCloseable {
             for (int i = 0; i < ports.length; i++) {
                 ServerSocketChannel listener = ServerSocketChannel.open(); listeners.add(listener);
                 listener.configureBlocking(false);
+                listener.setOption(java.net.StandardSocketOptions.SO_REUSEADDR,true);
                 listener.bind(new InetSocketAddress("localhost", ports[i]));
                 listener.register(selector, SelectionKey.OP_ACCEPT, processors.get(i));
             }
@@ -45,11 +46,18 @@ public class LineProcessorServer implements Runnable, AutoCloseable {
                     if (!key.isValid()) continue;
                     try {
                         if (key.isAcceptable()) {
-                            SocketChannel client = ((ServerSocketChannel) key.channel()).accept();
-                            if (client != null) {
-                                client.configureBlocking(false);
-                                client.register(selector,SelectionKey.OP_READ,
-                                        new Input((Consumer<String>) key.attachment()));
+                            synchronized (this) {
+                                if (closed) break;
+                                SocketChannel client = ((ServerSocketChannel) key.channel()).accept();
+                                if (client != null) {
+                                    try {
+                                        client.configureBlocking(false);
+                                        client.register(selector,SelectionKey.OP_READ,
+                                                new Input((Consumer<String>) key.attachment()));
+                                    } catch (IOException | RuntimeException e) {
+                                        client.close(); throw e;
+                                    }
+                                }
                             }
                         } else if (key.isReadable()) {
                             buffer.clear();
