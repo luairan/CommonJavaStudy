@@ -17,7 +17,7 @@ trap 'rm -rf "$BUILD_DIR"' EXIT HUP INT TERM
     src/main/java/thread/Interrupt.java src/main/java/thread/producercostomer/*.java \
     src/main/java/util/HttpUtils.java src/main/java/util/HttpsUtils.java src/main/java/util/HttpsParam.java \
     src/main/java/luairan/http/client/HttpsUtils.java src/main/java/luairan/http/client/HttpsParam.java \
-    src/main/java/luairan/textserver/nio/Server.java tests/RegressionTest.java
+    src/main/java/luairan/textserver/nio/Server.java src/test/java/RegressionTest.java
 "$KEYTOOL" -genkeypair -alias test -keyalg RSA -keysize 2048 -validity 2 \
     -dname "CN=wrong.example" -ext "SAN=dns:wrong.example" \
     -storetype PKCS12 -keystore "$BUILD_DIR/test.p12" \
