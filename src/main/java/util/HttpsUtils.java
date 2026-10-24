@@ -17,6 +17,15 @@ public class HttpsUtils {
     public static byte[] doUrl(String url, ByteArrayOutputStream param, String charSet,
                                Method method) throws KeyManagementException,
             NoSuchAlgorithmException, IOException {
+        return doUrl(url,param,charSet,method,10000,10000);
+    }
+
+    public static byte[] doUrl(String url, ByteArrayOutputStream param, String charSet,
+                               Method method, int connectTimeoutMillis, int readTimeoutMillis)
+            throws KeyManagementException, NoSuchAlgorithmException, IOException {
+        if (connectTimeoutMillis <= 0 || readTimeoutMillis <= 0) {
+            throw new IllegalArgumentException("Timeouts must be positive");
+        }
         Objects.requireNonNull(method, "method");
         Charset charset = charSet == null || charSet.isEmpty()
                 ? StandardCharsets.UTF_8 : Charset.forName(charSet);
@@ -31,8 +40,8 @@ public class HttpsUtils {
         }
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         try {
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
+            conn.setConnectTimeout(connectTimeoutMillis);
+            conn.setReadTimeout(readTimeoutMillis);
             conn.setRequestMethod(method.name());
             conn.setRequestProperty("Accept", "*/*");
             if (method == Method.POST) {

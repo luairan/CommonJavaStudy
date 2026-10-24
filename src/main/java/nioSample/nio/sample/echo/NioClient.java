@@ -3,6 +3,8 @@ package nioSample.nio.sample.echo;
 import java.io.IOException;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
+import java.net.SocketTimeoutException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ConcurrentHashMap;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -13,7 +15,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.*;
 
-public class NioClient implements Runnable {
+public class NioClient implements Runnable, AutoCloseable {
 
     // The host:port combination to connect to
     private InetAddress hostAddress;
@@ -34,7 +36,17 @@ public class NioClient implements Runnable {
     // Maps a SocketChannel to a RspHandler
     private Map         rspHandlers    = Collections.synchronizedMap(new HashMap());
 
-    public NioClient(InetAddress hostAddress, int port) throws IOException{
+    private final int requestTimeoutMillis;
+    private final Map<SocketChannel,Long> deadlines = new ConcurrentHashMap<>();
+
+    public NioClient(InetAddress hostAddress, int port) throws IOException {
+        this(hostAddress,port,10000);
+    }
+
+    /** Total request deadline, including connect/write/read; partial data does not reset it. */
+    public NioClient(InetAddress hostAddress, int port, int requestTimeoutMillis) throws IOException {
+        if (requestTimeoutMillis <= 0) throw new IllegalArgumentException("Timeout must be positive");
+        this.requestTimeoutMillis = requestTimeoutMillis;
         this.hostAddress = hostAddress;
         this.port = port;
         this.selector = this.initSelector();
@@ -46,7 +58,7 @@ public class NioClient implements Runnable {
      * @throws IOException
      */
     // Guarded by pendingChanges so stopping and submitting a request are atomic.
-    private boolean stopped;
+    private volatile boolean stopped;
 
     // This client speaks raw echo: the expected response length equals request length.
     private final Map<SocketChannel, Integer> expectedBytes = new ConcurrentHashMap<>();
@@ -61,6 +73,7 @@ public class NioClient implements Runnable {
             this.rspHandlers.put(socket, handler);
             expectedBytes.put(socket,data.length);
             responses.put(socket,new ByteArrayOutputStream());
+            deadlines.put(socket,System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(requestTimeoutMillis));
             synchronized (this.pendingData) {
                 List queue = new ArrayList();
                 queue.add(ByteBuffer.wrap(data.clone()));
@@ -77,7 +90,7 @@ public class NioClient implements Runnable {
             socket.close();
         } finally {
             synchronized (pendingData) { pendingData.remove(socket); }
-            expectedBytes.remove(socket); responses.remove(socket);
+            expectedBytes.remove(socket); responses.remove(socket); deadlines.remove(socket);
             RspHandler handler = (RspHandler) rspHandlers.remove(socket);
             if (failure != null && handler != null) handler.handleFailure(failure);
         }
@@ -85,7 +98,7 @@ public class NioClient implements Runnable {
 
     public void run() {
         try {
-        while (!Thread.currentThread().isInterrupted()) {
+        while (!stopped && !Thread.currentThread().isInterrupted()) {
             try {
                 // Process any pending changes
                 synchronized (this.pendingChanges) {
@@ -98,7 +111,7 @@ public class NioClient implements Runnable {
                                 if (key != null && key.isValid()) key.interestOps(change.ops);
                                 break;
                             case ChangeRequest.REGISTER:
-                                change.socket.register(this.selector, change.ops);
+                                if (change.socket.isOpen()) change.socket.register(this.selector, change.ops);
                                 break;
                         }
                     }
@@ -106,7 +119,10 @@ public class NioClient implements Runnable {
                 }
 
                 // Wait for an event one of the registered channels
-                this.selector.select();
+                this.selector.select(selectionWaitMillis());
+                synchronized (pendingChanges) {
+                if (stopped) break;
+                expireRequests();
 
                 // Iterate over the set of keys for which events are available
                 Iterator selectedKeys = this.selector.selectedKeys().iterator();
@@ -129,20 +145,53 @@ public class NioClient implements Runnable {
                     }
                     } catch (IOException e) { close((SocketChannel) key.channel(),e); }
                 }
+                }
             } catch (Exception e) {
-                e.printStackTrace();
+                if (!stopped) e.printStackTrace();
             }
         }
         } finally {
+            try { close(); }
+            catch (IOException e) { throw new java.io.UncheckedIOException(e); }
+        }
+    }
+
+    private long selectionWaitMillis() {
+        long now = System.nanoTime(), remaining = Long.MAX_VALUE;
+        for (long deadline : deadlines.values()) remaining = Math.min(remaining,deadline - now);
+        if (remaining == Long.MAX_VALUE) return 0; // No requests: block until work or shutdown.
+        if (remaining <= 0) return 1;
+        return 1 + (remaining - 1) / 1000000;
+    }
+
+    private void expireRequests() throws IOException {
+        long now = System.nanoTime();
+        for (Map.Entry<SocketChannel,Long> entry : deadlines.entrySet()) {
+            if (entry.getValue() - now <= 0) close(entry.getKey(),
+                    new SocketTimeoutException("Echo request exceeded " + requestTimeoutMillis + " ms"));
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        synchronized (pendingChanges) {
+            if (stopped && !selector.isOpen()) return;
+            stopped = true;
+            selector.wakeup();
+            Set<SocketChannel> sockets = new HashSet<>();
+            synchronized (rspHandlers) { sockets.addAll(rspHandlers.keySet()); }
+            for (Object item : pendingChanges) sockets.add(((ChangeRequest) item).socket);
+            IOException failure = null;
             try {
-                synchronized (pendingChanges) {
-                    stopped = true;
-                    for (Object item : pendingChanges) close(((ChangeRequest) item).socket,new IOException("Client stopped"));
-                    pendingChanges.clear();
+                for (SocketChannel socket : sockets) {
+                    try { close(socket,new IOException("Client stopped")); }
+                    catch (IOException e) { if (failure == null) failure = e; else failure.addSuppressed(e); }
                 }
-                for (SelectionKey key : selector.keys()) close((SocketChannel) key.channel(),new IOException("Client stopped"));
+            } finally {
+                pendingChanges.clear();
                 selector.close();
-            } catch (IOException e) { throw new java.io.UncheckedIOException(e); }
+            }
+            if (failure != null) throw failure;
         }
     }
 

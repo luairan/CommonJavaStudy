@@ -10,19 +10,25 @@ import java.util.concurrent.*;
 public class BlockServer implements AutoCloseable {
     private final ServerSocketChannel listener;
     private final ExecutorService executor;
+    private volatile boolean closed;
     private final Set<SocketChannel> clients = ConcurrentHashMap.newKeySet();
     public BlockServer() throws IOException { this(9000); }
     public BlockServer(int port) throws IOException {
         int size = Math.max(2,Runtime.getRuntime().availableProcessors());
         executor = new ThreadPoolExecutor(size,size,0,TimeUnit.SECONDS,new ArrayBlockingQueue<>(100));
         listener = ServerSocketChannel.open();
-        try { listener.bind(new InetSocketAddress("localhost",port)); }
+        try {
+            listener.setOption(StandardSocketOptions.SO_REUSEADDR,true);
+            listener.bind(new InetSocketAddress("localhost",port));
+        }
         catch (IOException | RuntimeException e) { close(); throw e; }
     }
     public void service() throws IOException {
         try {
-            while (!Thread.currentThread().isInterrupted()) {
+            while (!closed && !Thread.currentThread().isInterrupted()) {
                 SocketChannel client = listener.accept();
+                synchronized (this) {
+                if (closed) { client.close(); break; }
                 clients.add(client);
                 try {
                     executor.execute(() -> {
@@ -30,10 +36,20 @@ public class BlockServer implements AutoCloseable {
                         finally { clients.remove(client); }
                     });
                 } catch (RejectedExecutionException e) { clients.remove(client); client.close(); }
+                }
             }
+        } catch (AsynchronousCloseException e) {
+            if (!closed && !Thread.currentThread().isInterrupted()) throw e;
         } finally { close(); }
     }
-    public void close() throws IOException {
+    public int getPort() throws IOException {
+        return ((InetSocketAddress) listener.getLocalAddress()).getPort();
+    }
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        return executor.awaitTermination(timeout,unit);
+    }
+    public synchronized void close() throws IOException {
+        closed = true;
         try { listener.close(); }
         finally {
             try { for (SocketChannel client : clients) client.close(); }
