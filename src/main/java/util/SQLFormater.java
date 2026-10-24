@@ -66,28 +66,52 @@ public class SQLFormater {
         private LinkedList<Boolean> afterByOrFromOrSelects = new LinkedList();
         int indent = 1;
         StringBuilder result = new StringBuilder();
-        StringTokenizer tokens;
+        LinkedList<String> tokens = new LinkedList<>();
         String lastToken;
         String token;
         String lcToken;
 
         public FormatProcess(String sql) {
-            this.tokens = new StringTokenizer(sql, "()+*/-=<>\'`\"[], \n\r\f\t", true);
+            StringTokenizer tokenizer = new StringTokenizer(sql, "()+*/-=<>\'`\"[], \n\r\f\t", true);
+            while (tokenizer.hasMoreTokens()) tokens.add(tokenizer.nextToken());
         }
 
         public String perform() {
             this.result.append("\n    ");
 
-            while (this.tokens.hasMoreTokens()) {
-                this.token = this.tokens.nextToken();
+            while (!this.tokens.isEmpty()) {
+                this.token = this.tokens.removeFirst();
+                // Comments are opaque SQL text. A line comment must retain its terminator.
+                if (("-".equals(this.token) && "-".equals(this.tokens.peekFirst()))
+                        || ("/".equals(this.token) && "*".equals(this.tokens.peekFirst()))) {
+                    boolean lineComment = "-".equals(this.token);
+                    StringBuilder comment = new StringBuilder(this.token).append(this.tokens.removeFirst());
+                    boolean closed = lineComment;
+                    String previous = "";
+                    while (!this.tokens.isEmpty()) {
+                        String part = this.tokens.removeFirst();
+                        comment.append(part);
+                        if (lineComment && ("\n".equals(part) || "\r".equals(part))) break;
+                        if (!lineComment && "*".equals(previous) && "/".equals(part)) {
+                            closed = true;
+                            break;
+                        }
+                        previous = part;
+                    }
+                    if (!closed) throw new IllegalArgumentException("Unterminated SQL block comment");
+                    this.result.append(comment);
+                    if (lineComment) this.newline();
+                    else this.beginLine = false;
+                    continue;
+                }
                 this.lcToken = this.token.toLowerCase(Locale.ROOT);
                 String t;
                 if ("'".equals(this.token) || "\"".equals(this.token) || "`".equals(this.token)
                         || "[".equals(this.token)) {
                     String closing = "[".equals(this.token) ? "]" : this.token;
                     boolean closed = false;
-                    while (this.tokens.hasMoreTokens()) {
-                        t = this.tokens.nextToken();
+                    while (!this.tokens.isEmpty()) {
+                        t = this.tokens.removeFirst();
                         this.token += t;
                         if (closing.equals(t)) { closed = true; break; }
                     }
